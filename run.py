@@ -29,9 +29,28 @@ train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits(
     bptt_len=32, 
     repeat=False)
 
+
 def argParser():
     """
+    This function creates a parser object which parses all the flags from the command line
+    We can access the parsed command line values using the args object returned by this function
+    Usage:
+        First field is the flag name.
+        dest=NAME is the name to reference when using the parameter (args.NAME)
+        default is the default value of the parameter
+    Example:
+        > python run.py --gpu 0
+        args.gpu <-- 0
     """
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--gpu', dest='gpu', default='0', help="The gpu number if there's more than one gpu")
+    parser.add_argument('--log', dest='log', default='log/', help="directory to save logs")
+    parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
+    parser.add_argument("--batch_size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
+
+    args = parser.parse_args()
+    return args
 
 
 def train():
@@ -141,6 +160,7 @@ class Trainer:
                 f.write('\n')
                 f.write(str(idx) + ',')
                 f.write(line) 
+
 
 def main():
     """
