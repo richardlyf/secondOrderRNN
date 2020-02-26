@@ -51,6 +51,18 @@ def test():
 class Trainer:
     def __init__(self, args, device):
 
+        self.device=  device
+        self.TEXT = self.build_dataset(args)
+
+        self.model = LSTMLanguageModel(
+            TEXT = self.TEXT,
+            hidden_dim = args.hidden_size, 
+            batch_size = args.batch_size, 
+            dropout_rate=args.dropout)
+
+        self.model = self.model.to(device)
+
+    def build_dataset(self, args):
         TEXT = torchtext.data.Field()
         train, val, test = torchtext.datasets.LanguageModelingDataset.splits(
             path=".", 
@@ -64,22 +76,13 @@ class Trainer:
         train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits(
             (train, val, test), 
             batch_size=args.batch_size, 
-            device=device, 
+            device=self.device, 
             bptt_len=args.bptt_len, 
             repeat=False)
 
         self.train_iter = train_iter
         self.val_iter = val_iter
-        self.device=device
-        self.TEXT = TEXT
-
-        self.model = LSTMLanguageModel(
-            TEXT = TEXT,
-            hidden_dim = args.hidden_size, 
-            batch_size = args.batch_size, 
-            dropout_rate=args.dropout)
-
-        self.model = self.model.to(device)
+        return TEXT
 
     def string_to_batch(self, string):
         relevant_split = string.split() # last two words, ignore ___
@@ -174,7 +177,6 @@ class Trainer:
 def main():
     """
     """
-    # global use_cuda
     use_cuda = torch.cuda.is_available()
     device = 'cuda' if use_cuda else 'cpu'
 
