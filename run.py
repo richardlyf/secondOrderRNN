@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from tqdm import tqdm
 from model import LSTMLanguageModel
-import utils
 
 def argParser():
     """
@@ -111,6 +110,7 @@ def validate(model, val_iter):
 def main():
     """
     """
+    # get arguments
     args = argParser()
 
     # set device
@@ -128,6 +128,7 @@ def main():
         dropout_rate=args.dropout)
     model = model.to(device)
     
+    # train model
     train(model, dataset, TEXT, args, device, num_epochs = args.epochs)
 
 if __name__ == "__main__":
