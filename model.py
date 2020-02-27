@@ -3,6 +3,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
+def ModelChooser(model_name, **kwargs):
+    """
+    This function takes in a model name and returns its corresponding model
+    """
+    if model_name == "baseline_lstm":
+        return LSTMLanguageModel(**kwargs)
+
+
 class LSTMLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
     def __init__(self, TEXT, hidden_dim = 100, batch_size = 10, dropout_rate=0.5):
@@ -27,6 +35,7 @@ class LSTMLanguageModel(nn.Module):
 
         self.drop = nn.Dropout(p = dropout_rate)
 
+
     def init_hidden(self):
         direction = 2 if self.lstm.bidirectional else 1
         return (
@@ -39,10 +48,12 @@ class LSTMLanguageModel(nn.Module):
                 self.batch_size, 
                 self.hidden_dim)))
 
+
     def detach_hidden(self, hidden):
         """ util function to keep down number of graphs """
         return tuple([h.detach() for h in hidden])
         
+
     def forward(self, x, hidden, train = True):
         """ predict, return hidden state so it can be used to intialize the next hidden state """
         embedded = self.embeddings(x)

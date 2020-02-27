@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from tqdm import tqdm
-from model import LSTMLanguageModel
+from model import ModelChooser
 
 def argParser():
     """
@@ -23,6 +23,7 @@ def argParser():
 
     parser.add_argument('--gpu', dest='gpu', default='0', help="The gpu number if there's more than one gpu")
     parser.add_argument('--log', dest='log', default='log/', help="directory to save logs")
+    parser.add_argument('--model', dest='model', default='baseline_lstm', help="name of model to use")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
     parser.add_argument("--train-path", dest="train_path", help="Training data file")
@@ -121,15 +122,12 @@ def main():
     TEXT, dataset = build_dataset(args)
 
     # build model
-    model = LSTMLanguageModel(
-        TEXT = TEXT,
-        hidden_dim = args.hidden_size, 
-        batch_size = args.batch_size, 
-        dropout_rate=args.dropout)
+    model = ModelChooser(args.model, vars(args))
     model = model.to(device)
     
     # train model
     train(model, dataset, TEXT, args, device, num_epochs = args.epochs)
+
 
 if __name__ == "__main__":
     main()
