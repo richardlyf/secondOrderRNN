@@ -29,8 +29,8 @@ def argParser():
     parser.add_argument("--train-path", dest="train_path", help="Training data file")
     parser.add_argument("--valid-path", dest="valid_path", help="Validation data file")
     parser.add_argument("--bptt-len", dest="bptt_len", default=32, type=int, help="Length of sequences for backpropagation through time")
-    parser.add_argument("--hidden-size", dest="hidden_size", type=int, default=256, help="dimension fo hidden layer")
-    parser.add_argument("--dropout", dest="dropout", type=float, default=0.3, help="dropout rate")
+    parser.add_argument("--hidden-size", dest="hidden_dim", type=int, default=256, help="dimension fo hidden layer")
+    parser.add_argument("--dropout", dest="dropout_rate", type=float, default=0.3, help="dropout rate")
 
     args = parser.parse_args()
     return args
@@ -122,7 +122,9 @@ def main():
     TEXT, dataset = build_dataset(args)
 
     # build model
-    model = ModelChooser(args.model, vars(args))
+    kwargs = vars(args)
+    kwargs["TEXT"] = TEXT
+    model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
     
     # train model
