@@ -25,10 +25,10 @@ def argParser():
     parser.add_argument('--gpu', dest='gpu', default='0', help="The gpu number if there's more than one gpu")
     parser.add_argument('--log', dest='log', default='log/', help="directory to save logs")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
-    parser.add_argument("--batch_size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
-    parser.add_argument("--train_path", dest="train_path", help="Training data file")
-    parser.add_argument("--valid_path", dest="valid_path", help="Validation data file")
-    parser.add_argument("--bptt_len", dest="bptt_len", default=32, type=int, help="Length of sequences for backpropagation through time")
+    parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
+    parser.add_argument("--train-path", dest="train_path", help="Training data file")
+    parser.add_argument("--valid-path", dest="valid_path", help="Validation data file")
+    parser.add_argument("--bptt-len", dest="bptt_len", default=32, type=int, help="Length of sequences for backpropagation through time")
     parser.add_argument("--hidden-size", dest="hidden_size", type=int, default=256, help="dimension fo hidden layer")
     parser.add_argument("--dropout", dest="dropout", type=float, default=0.3, help="dropout rate")
 
@@ -51,7 +51,7 @@ def test():
 class Trainer:
     def __init__(self, args, device):
 
-        self.device=  device
+        self.device =  device
         self.TEXT = self.build_dataset(args)
 
         self.model = LSTMLanguageModel(
@@ -60,7 +60,7 @@ class Trainer:
             batch_size = args.batch_size, 
             dropout_rate=args.dropout)
 
-        self.model = self.model.to(device)
+        self.model = self.model.to(self.device)
 
     def build_dataset(self, args):
         TEXT = torchtext.data.Field()
@@ -131,7 +131,7 @@ class Trainer:
                 
             self.model.eval()
             train_ppl = np.exp(np.mean(epoch_loss))
-            val_ppl = self.validate(self.model)
+            val_ppl = self.validate()
 
             print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}'.format(epoch+1, np.mean(epoch_loss), train_ppl,  val_ppl))
     
@@ -143,12 +143,12 @@ class Trainer:
         criterion = nn.NLLLoss()
         hidden = self.model.init_hidden()
         aggregate_loss = []
-        for batch in val_iter:
+        for batch in self.val_iter:
             y_p, _ = self.model.forward(batch.text, hidden, train = False)
             y_t = batch.target.view(-1)
             
             loss = criterion(y_p, y_t)
-            aggregate_loss.append(loss.data[0])        
+            aggregate_loss.append(loss.item())        
         val_ppl = np.exp(np.mean(aggregate_loss))
         return val_ppl
     
