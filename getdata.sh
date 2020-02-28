@@ -4,7 +4,6 @@
 
 echo "=== Acquiring datasets ==="
 echo "---"
-mkdir -p save
 
 mkdir -p data
 cd data
