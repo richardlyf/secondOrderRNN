@@ -128,6 +128,7 @@ def main():
     device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else "cpu")
     unique_logdir = create_unique_logdir(args.log)
     logger = Logger(unique_logdir) if args.log != '' else None
+    print("Using device: ", device)
     print("All training logs will be saved to: ", unique_logdir)
     print("Will log to tensorboard: ", logger is not None)
 
