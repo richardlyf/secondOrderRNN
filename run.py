@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import os
 import torchtext, random, torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +9,7 @@ from tqdm import tqdm
 from logger import Logger
 from utils import *
 from model import ModelChooser
+from dataset import *
 
 
 def argParser():
@@ -37,20 +39,6 @@ def argParser():
 
     args = parser.parse_args()
     return args
-
-
-def build_dataset(args):
-    TEXT = torchtext.data.Field()
-    train, val, test = torchtext.datasets.LanguageModelingDataset.splits(
-        path=".", 
-        train=args.train_path, 
-        validation=args.valid_path, 
-        test=args.valid_path, 
-        text_field=TEXT)
-
-    TEXT.build_vocab(train, max_size=1000) if False else TEXT.build_vocab(train)
-    TEXT.vocab.load_vectors('glove.840B.300d')
-    return TEXT, (train, val, test)
 
 
 def train(model, dataset, TEXT, args, device, num_epochs):
@@ -119,7 +107,7 @@ def main():
     logger = Logger(unique_logdir) if args.log != '' else None
 
     # build TEXT object
-    TEXT, dataset = build_dataset(args)
+    TEXT, dataset = build_dataset(args, is_parens=False)
 
     # build model
     kwargs = vars(args) # Turns args into a dictionary
