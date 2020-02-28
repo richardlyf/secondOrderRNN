@@ -31,6 +31,8 @@ def argParser():
     parser.add_argument('--log_every', dest='log_every', type=int, default=100, help="Number of itertions between logging to tensorboard within an epoch")
     parser.add_argument('--lr', dest='lr', type=float, default=3e-4, help="Learning rate for training")
     parser.add_argument('--model', dest='model', default='baseline_lstm', help="Name of model to use")
+    parser.add_argument('--embedding_dim', dest='embedding_dim', type=int, default=12, help="Size of the word embedding")
+    parser.add_argument('--is_parens', dest='is_parens', type=int, default=1, help="Train on the parenthesis dataset when 1, 0 on TreeBank dataset")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
     parser.add_argument("--train-path", dest="train_path", help="Training data file")
@@ -122,6 +124,7 @@ def main():
     # setup
     print("Setting up...")
     args = argParser()
+    args.is_parens = True if args.is_parens == 1 else False
     device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else "cpu")
     unique_logdir = create_unique_logdir(args.log)
     logger = Logger(unique_logdir) if args.log != '' else None
@@ -130,7 +133,7 @@ def main():
 
     # build TEXT object
     print("Creating TEXT...")
-    TEXT, dataset = build_dataset(args, is_parens=False)
+    TEXT, dataset = build_dataset(args, is_parens=args.is_parens)
     print("Done!")
 
     # build model

@@ -13,15 +13,18 @@ def ModelChooser(model_name, **kwargs):
 
 class LSTMLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
-    def __init__(self, TEXT, hidden_dim = 100, batch_size = 10, dropout_rate=0.5, **kwargs):
+    def __init__(self, TEXT, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, is_parens=True, **kwargs):
         super(LSTMLanguageModel, self).__init__()
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
         self.dropout_rate = dropout_rate
         
-        vocab_size, embedding_dim = TEXT.vocab.vectors.shape
+        vocab_size = len(TEXT.vocab)
+        if not is_parens:
+            embedding_dim = TEXT.vocab.vectors.shape[1]
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.embeddings.weight.data.copy_(TEXT.vocab.vectors)
+        if not is_parens:
+            self.embeddings.weight.data.copy_(TEXT.vocab.vectors)
         
         self.lstm = nn.LSTM(
             input_size = embedding_dim, 
@@ -54,7 +57,7 @@ class LSTMLanguageModel(nn.Module):
         return tuple([h.detach() for h in hidden])
         
 
-    def forward(self, x, hidden, train = True):
+    def forward(self, x, hidden, train=True):
         """ predict, return hidden state so it can be used to intialize the next hidden state """
         embedded = self.embeddings(x)
         embedded = self.drop(embedded) if train else embedded
