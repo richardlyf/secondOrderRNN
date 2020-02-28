@@ -32,6 +32,7 @@ def argParser():
     parser.add_argument("--lr", dest="lr", type=float, default=3e-4, help="Learning rate for training")
     parser.add_argument("--model", dest="model", default="baseline_lstm", help="Name of model to use")
     parser.add_argument("--embedding_dim", dest='embedding_dim', type=int, default=12, help="Size of the word embedding")
+    parser.add_argument("--num_layers", dest='num_layers', type=int, default=1, help="Number of LSTM layers")
     parser.add_argument("--is_parens", dest="is_parens", type=int, default=1, help="Train on the parenthesis dataset when 1, 0 on TreeBank dataset")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--checkpoint", dest="checkpoint", type=str, default="", help="Path to the .pth checkpoint file. Used to continue training from checkpoint")

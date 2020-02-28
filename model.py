@@ -13,7 +13,7 @@ def ModelChooser(model_name, **kwargs):
 
 class LSTMLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
-    def __init__(self, TEXT, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, is_parens=True, **kwargs):
+    def __init__(self, TEXT, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, num_layers=1, is_parens=True, **kwargs):
         super(LSTMLanguageModel, self).__init__()
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
@@ -29,7 +29,7 @@ class LSTMLanguageModel(nn.Module):
         self.lstm = nn.LSTM(
             input_size = embedding_dim, 
             hidden_size = self.hidden_dim, 
-            num_layers = 2,
+            num_layers = num_layers,
             dropout = dropout_rate)
 
         self.linear = nn.Linear(
