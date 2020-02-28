@@ -26,14 +26,15 @@ def argParser():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--gpu', dest='gpu', type=int, default=0, help="The gpu number if there's more than one gpu")
-    parser.add_argument('--log', dest='log', default='', help="Unique log directory name under log/. If the name is empty, do not store logs")
-    parser.add_argument('--log_every', dest='log_every', type=int, default=100, help="Number of itertions between logging to tensorboard within an epoch")
-    parser.add_argument('--lr', dest='lr', type=float, default=3e-4, help="Learning rate for training")
-    parser.add_argument('--model', dest='model', default='baseline_lstm', help="Name of model to use")
-    parser.add_argument('--embedding_dim', dest='embedding_dim', type=int, default=12, help="Size of the word embedding")
-    parser.add_argument('--is_parens', dest='is_parens', type=int, default=1, help="Train on the parenthesis dataset when 1, 0 on TreeBank dataset")
+    parser.add_argument("--gpu", dest="gpu", type=int, default=0, help="The gpu number if there's more than one gpu")
+    parser.add_argument("--log", dest="log", default='', help="Unique log directory name under log/. If the name is empty, do not store logs")
+    parser.add_argument("--log_every", dest="log_every", type=int, default=100, help="Number of itertions between logging to tensorboard within an epoch")
+    parser.add_argument("--lr", dest="lr", type=float, default=3e-4, help="Learning rate for training")
+    parser.add_argument("--model", dest="model", default="baseline_lstm", help="Name of model to use")
+    parser.add_argument("--embedding_dim", dest='embedding_dim', type=int, default=12, help="Size of the word embedding")
+    parser.add_argument("--is_parens", dest="is_parens", type=int, default=1, help="Train on the parenthesis dataset when 1, 0 on TreeBank dataset")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
+    parser.add_argument("--checkpoint", dest="checkpoint", type=str, default="", help="Path to the .pth checkpoint file. Used to continue training from checkpoint")
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
     parser.add_argument("--train-path", dest="train_path", help="Training data file")
     parser.add_argument("--valid-path", dest="valid_path", help="Validation data file")
@@ -51,7 +52,9 @@ def train(model, dataset, TEXT, args, device, num_epochs, logger=None):
     log_every = args.log_every
     lr = args.lr
     save_to_log = logger is not None
+    logdir = logger.get_logdir() if logger is not None else None
 
+    # Set up training data and validation data
     train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits(
         dataset, 
         batch_size=batch_size, 
@@ -63,7 +66,12 @@ def train(model, dataset, TEXT, args, device, num_epochs, logger=None):
     optimizer = torch.optim.Adam(params=parameters, lr=lr)
     criterion = nn.NLLLoss()
 
+    # Load checkpoint if specified
+    if args.checkpoint != "":
+        model = load_checkpoint(args.checkpoint, model, optimizer, device)
+
     log_step = 0
+    val_ppl = []
     for epoch in tqdm(range(num_epochs)):
         epoch_loss = []
         hidden = model.init_hidden()
@@ -88,7 +96,8 @@ def train(model, dataset, TEXT, args, device, num_epochs, logger=None):
                 logger.scalar_summary("average_training_loss", average_train_loss, log_step)
                 logger.scalar_summary("average_training_ppl", average_train_ppl, log_step)
                 log_step += 1
-            
+        
+        # End of epoch, run validations
         model.eval()
         epoch_average_loss = np.mean(epoch_loss)
         epoch_train_ppl = np.exp(epoch_average_loss)
@@ -99,6 +108,12 @@ def train(model, dataset, TEXT, args, device, num_epochs, logger=None):
             logger.scalar_summary("epoch_training_loss", epoch_average_loss, epoch)
             logger.scalar_summary("epoch_train_ppl", epoch_train_ppl, epoch)
             logger.scalar_summary("epoch_val_ppl", epoch_val_ppl, epoch)
+            # Save epoch checkpoint
+            save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
+            # Save best validation checkpoint
+            if epoch_val_ppl < min(val_ppl):
+                save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl", epoch_val_ppl)
+                val_ppl.append(epoch_val_ppl)
 
         print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}' \
             .format(epoch + 1, epoch_average_loss, epoch_train_ppl, epoch_val_ppl))
