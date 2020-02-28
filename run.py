@@ -5,7 +5,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from tqdm import tqdm
+from logger import Logger
+from utils import *
 from model import ModelChooser
+
 
 def argParser():
     """
@@ -22,7 +25,7 @@ def argParser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--gpu', dest='gpu', default='0', help="The gpu number if there's more than one gpu")
-    parser.add_argument('--log', dest='log', default='log/', help="directory to save logs")
+    parser.add_argument('--log', dest='log', default='', help="unique log directory name under log/. If the name is empty, do not store logs")
     parser.add_argument('--model', dest='model', default='baseline_lstm', help="name of model to use")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
@@ -74,7 +77,7 @@ def train(model, dataset, TEXT, args, device, num_epochs):
 
             optimizer.zero_grad()
 
-            y_pred, hidden = model.forward(x, hidden, train = True)
+            y_pred, hidden = model.forward(x, hidden, train=True)
 
             loss = criterion(y_pred, y)
             loss.backward()
@@ -109,26 +112,23 @@ def validate(model, val_iter):
     
 
 def main():
-    """
-    """
-    # get arguments
+    # setup
     args = argParser()
-
-    # set device
-    use_cuda = torch.cuda.is_available()
-    device = 'cuda' if use_cuda else 'cpu'
+    device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else "cpu")
+    unique_logdir = create_unique_logdir(args.log)
+    logger = Logger(unique_logdir) if args.log != '' else None
 
     # build TEXT object
     TEXT, dataset = build_dataset(args)
 
     # build model
-    kwargs = vars(args)
+    kwargs = vars(args) # Turns args into a dictionary
     kwargs["TEXT"] = TEXT
     model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
     
     # train model
-    train(model, dataset, TEXT, args, device, num_epochs = args.epochs)
+    train(model, dataset, TEXT, args, device, num_epochs=args.epochs)
 
 
 if __name__ == "__main__":
