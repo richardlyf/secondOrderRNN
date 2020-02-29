@@ -9,7 +9,7 @@ from logger import Logger
 from utils import *
 from model import ModelChooser
 from dataset import *
-
+from eval import *
 
 def argParser():
     """
@@ -63,6 +63,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
 
     log_step = 0
     val_ppl = []
+    
     for epoch in tqdm(range(num_epochs)):
         epoch_loss = []
         hidden = model.init_hidden(device)
@@ -72,11 +73,10 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
             x, y = batch
             x = x.to(device)
             y = y.view(-1).to(device)
-            
             optimizer.zero_grad()
             y_pred, hidden = model(x, hidden, train=True)
-            # Criterion takes in y_pred: (batch_size*seq_len) correct labels and 
-            # y: (batch_size*seq_len, vocab_size) softmax prob of vocabs
+            # Criterion takes in y: (batch_size*seq_len) correct labels and 
+            # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
             loss.backward()
 
@@ -97,6 +97,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
         epoch_average_loss = np.mean(epoch_loss)
         epoch_train_ppl = np.exp(epoch_average_loss)
         epoch_val_ppl = validate_ppl(model, val_dataset, device)
+        epoch_val_parens = validate_parens(model, val_dataset, batch_size, device)
 
         # Add to logger on tensorboard at the end of an epoch
         if save_to_log:
@@ -131,6 +132,30 @@ def validate_ppl(model, val_dataset, device):
     val_ppl = np.exp(np.mean(aggregate_loss))
     return val_ppl
     
+def validate_parens(model, val_dataset, batch_size, device):
+    hidden = model.init_hidden(device)
+    ldpa_loss = {i : [0, 0] for i in range(200)} ### NEED TO FIX HARDCODING HERE
+    for batch in val_dataset:
+        x, y = batch
+        x = x.to(device)
+        y = y.view(-1).to(device)
+        y_p, _ = model(x, hidden, train=False)
+
+        # calculate LDPA metric
+        first_chars = [s[0].item() for s in x]
+        ldpa = LDPA(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size)
+        
+        # add to cumulative ldpa loss
+        for dist, c in ldpa.items():
+            ldpa_loss[dist][0] += c[0]
+            ldpa_loss[dist][1] += c[1]
+
+    # calculate LDPA ratios
+    ldpa_loss = {k: v[1] / v[0] for k, v in ldpa_loss.items() if v[0]}
+    wcpa = min(ldpa_loss.values())
+    print(ldpa_loss)
+    return wcpa
+
 
 def main():
     # setup
@@ -157,7 +182,6 @@ def main():
     kwargs["vocab"] = train_dataset.get_vocab()
     model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
-    
     # train model
     print("Starting training...")
     train(model, train_dataloader, val_dataloader, args, device, logger=logger)
