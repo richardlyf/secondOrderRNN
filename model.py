@@ -13,18 +13,14 @@ def ModelChooser(model_name, **kwargs):
 
 class LSTMLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
-    def __init__(self, TEXT, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, num_layers=1, is_parens=True, **kwargs):
+    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, num_layers=1, is_parens=True, **kwargs):
         super(LSTMLanguageModel, self).__init__()
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
         self.dropout_rate = dropout_rate
         
-        vocab_size = len(TEXT.vocab)
-        if not is_parens:
-            embedding_dim = TEXT.vocab.vectors.shape[1]
+        vocab_size = len(vocab)
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
-        if not is_parens:
-            self.embeddings.weight.data.copy_(TEXT.vocab.vectors)
         
         self.lstm = nn.LSTM(
             input_size = embedding_dim, 
@@ -36,7 +32,7 @@ class LSTMLanguageModel(nn.Module):
             in_features = self.hidden_dim, 
             out_features = vocab_size)
 
-        self.drop = nn.Dropout(p = dropout_rate)
+        self.drop = nn.Dropout(p=dropout_rate)
 
 
     def init_hidden(self):
@@ -58,16 +54,23 @@ class LSTMLanguageModel(nn.Module):
         
 
     def forward(self, x, hidden, train=True):
-        """ predict, return hidden state so it can be used to intialize the next hidden state """
+        """
+        Predict, return hidden state so it can be used to intialize the next hidden state 
+        @param x: (batch_size, sequence_length)
+        """
         embedded = self.embeddings(x)
         embedded = self.drop(embedded) if train else embedded
+        # (sequence_length, batch_size, embedding_dim) to fit LSTM input shape requirement
+        embedded = torch.transpose(embedded, 0, 1).contiguous()
         
         lstm_output, hdn = self.lstm(embedded, hidden)
         reshaped = lstm_output.view(-1, lstm_output.size(2))
         dropped = self.drop(reshaped) if train else reshaped
         
         decoded = self.linear(dropped)
-        
-        logits = F.log_softmax(decoded, dim = 1)
+        # (batch_size * sequence_length, vocab_size)
+        logits = F.log_softmax(decoded, dim=1)
                 
-        return logits, self.detach_hidden(hdn)    
+        return logits, self.detach_hidden(hdn)
+
+

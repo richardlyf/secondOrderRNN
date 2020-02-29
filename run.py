@@ -1,10 +1,9 @@
 import argparse
 import numpy as np
 import os
-import torchtext, random, torch
+import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.autograd import Variable
+from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from logger import Logger
 from utils import *
@@ -47,21 +46,14 @@ def argParser():
     return args
 
 
-def train(model, dataset, TEXT, args, device, num_epochs, logger=None):
+def train(model, train_dataset, val_dataset, args, device, logger=None):
     batch_size = args.batch_size
     backprop_len = args.bptt_len
     log_every = args.log_every
     lr = args.lr
+    num_epochs = args.epochs
     save_to_log = logger is not None
     logdir = logger.get_logdir() if logger is not None else None
-
-    # Set up training data and validation data
-    train_iter, val_iter, test_iter = torchtext.data.BPTTIterator.splits(
-        dataset, 
-        batch_size=batch_size, 
-        device=device, 
-        bptt_len=backprop_len, 
-        repeat=False)
 
     parameters = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = torch.optim.Adam(params=parameters, lr=lr)
@@ -78,11 +70,14 @@ def train(model, dataset, TEXT, args, device, num_epochs, logger=None):
         hidden = model.init_hidden()
         model.train()
 
-        for batch_iter, batch in enumerate(tqdm(train_iter)):
-            x, y = batch.text, batch.target.view(-1)
+        for batch_iter, batch in enumerate(tqdm(train_dataset)):
+            x, y = batch
+            y = y.view(-1)
+            
             optimizer.zero_grad()
-            y_pred, hidden = model.forward(x, hidden, train=True)
-
+            y_pred, hidden = model(x, hidden, train=True)
+            # Criterion takes in y_pred: (batch_size*seq_len) correct labels and 
+            # y: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
             loss.backward()
 
@@ -102,7 +97,7 @@ def train(model, dataset, TEXT, args, device, num_epochs, logger=None):
         model.eval()
         epoch_average_loss = np.mean(epoch_loss)
         epoch_train_ppl = np.exp(epoch_average_loss)
-        epoch_val_ppl = validate(model, val_iter)
+        epoch_val_ppl = validate(model, val_dataset)
 
         # Add to logger on tensorboard at the end of an epoch
         if save_to_log:
@@ -122,15 +117,15 @@ def train(model, dataset, TEXT, args, device, num_epochs, logger=None):
     print('Model trained.')
 
         
-def validate(model, val_iter):
+def validate_ppl(model, val_dataset):
     criterion = nn.NLLLoss()
     hidden = model.init_hidden()
     aggregate_loss = []
-    for batch in val_iter:
-        y_p, _ = model.forward(batch.text, hidden, train=False)
-        y_t = batch.target.view(-1)
+    for batch in val_dataset:
+        x, y = batch
+        y_p, _ = model(x, hidden, train=False)
         
-        loss = criterion(y_p, y_t)
+        loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())        
     val_ppl = np.exp(np.mean(aggregate_loss))
     return val_ppl
@@ -148,20 +143,23 @@ def main():
     print("All training logs will be saved to: ", unique_logdir)
     print("Will log to tensorboard: ", logger is not None)
 
-    # build TEXT object
-    print("Creating TEXT...")
-    TEXT, dataset = build_dataset(args, is_parens=args.is_parens)
+    # build dataset object
+    print("Creating Dataset...")
+    train_dataset = ParensDataset(args.train_path)
+    val_dataset = ParensDataset(args.valid_path)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=4)
     print("Done!")
 
     # build model
     kwargs = vars(args) # Turns args into a dictionary
-    kwargs["TEXT"] = TEXT
+    kwargs["vocab"] = train_dataset.get_vocab()
     model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
     
     # train model
     print("Starting training...")
-    train(model, dataset, TEXT, args, device, num_epochs=args.epochs, logger=logger)
+    train(model, train_dataloader, val_dataloader, args, device, logger=logger)
 
 
 if __name__ == "__main__":
