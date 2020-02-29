@@ -23,7 +23,7 @@ class Logger(object):
         self.logdir = log_dir
         self.writer = tf.summary.create_file_writer(log_dir)
 
-    def get_logdir():
+    def get_logdir(self):
         return self.logdir
 
     def scalar_summary(self, tag, value, step):
