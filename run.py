@@ -96,18 +96,19 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
         model.eval()
         epoch_average_loss = np.mean(epoch_loss)
         epoch_train_ppl = np.exp(epoch_average_loss)
-        epoch_val_ppl = validate_ppl(model, val_dataset, device)
+        epoch_val_ppl, epoch_val_loss = validate_ppl(model, val_dataset, device)
 
         # Add to logger on tensorboard at the end of an epoch
         if save_to_log:
             logger.scalar_summary("epoch_training_loss", epoch_average_loss, epoch)
             logger.scalar_summary("epoch_train_ppl", epoch_train_ppl, epoch)
+            logger.scalar_summary("epoch_val_loss", epoch_val_loss, epoch)
             logger.scalar_summary("epoch_val_ppl", epoch_val_ppl, epoch)
             # Save epoch checkpoint
             save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
             # Save best validation checkpoint
             if val_ppl == [] or epoch_val_ppl < min(val_ppl):
-                save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl", epoch_val_ppl)
+                save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl")
                 val_ppl.append(epoch_val_ppl)
 
         print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}' \
@@ -128,8 +129,9 @@ def validate_ppl(model, val_dataset, device):
         
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())        
-    val_ppl = np.exp(np.mean(aggregate_loss))
-    return val_ppl
+    val_loss = np.mean(aggregate_loss)
+    val_ppl = np.exp(val_loss)
+    return val_ppl, val_loss
     
 
 def main():
