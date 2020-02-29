@@ -35,17 +35,17 @@ class LSTMLanguageModel(nn.Module):
         self.drop = nn.Dropout(p=dropout_rate)
 
 
-    def init_hidden(self):
+    def init_hidden(self, device):
         direction = 2 if self.lstm.bidirectional else 1
         return (
             Variable(torch.zeros(
                 direction*self.lstm.num_layers, 
                 self.batch_size, 
-                self.hidden_dim)), 
+                self.hidden_dim)).to(device), 
             Variable(torch.zeros(
                 direction*self.lstm.num_layers, 
                 self.batch_size, 
-                self.hidden_dim)))
+                self.hidden_dim)).to(device))
 
 
     def detach_hidden(self, hidden):

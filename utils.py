@@ -1,5 +1,6 @@
 import os
 import time
+import torch
 
 
 def create_unique_logdir(logdir, root_logdir="log/"):

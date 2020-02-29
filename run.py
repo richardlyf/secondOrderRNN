@@ -65,7 +65,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
     val_ppl = []
     for epoch in tqdm(range(num_epochs)):
         epoch_loss = []
-        hidden = model.init_hidden()
+        hidden = model.init_hidden(device)
         model.train()
 
         for batch_iter, batch in enumerate(tqdm(train_dataset)):
@@ -96,7 +96,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
         model.eval()
         epoch_average_loss = np.mean(epoch_loss)
         epoch_train_ppl = np.exp(epoch_average_loss)
-        epoch_val_ppl = validate(model, val_dataset)
+        epoch_val_ppl = validate_ppl(model, val_dataset, device)
 
         # Add to logger on tensorboard at the end of an epoch
         if save_to_log:
@@ -106,7 +106,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
             # Save epoch checkpoint
             save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
             # Save best validation checkpoint
-            if epoch_val_ppl < min(val_ppl):
+            if val_ppl == [] or epoch_val_ppl < min(val_ppl):
                 save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl", epoch_val_ppl)
                 val_ppl.append(epoch_val_ppl)
 
@@ -116,12 +116,14 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
     print('Model trained.')
 
         
-def validate_ppl(model, val_dataset):
+def validate_ppl(model, val_dataset, device):
     criterion = nn.NLLLoss()
-    hidden = model.init_hidden()
+    hidden = model.init_hidden(device)
     aggregate_loss = []
     for batch in val_dataset:
         x, y = batch
+        x = x.to(device)
+        y = y.view(-1).to(device)
         y_p, _ = model(x, hidden, train=False)
         
         loss = criterion(y_p, y)
