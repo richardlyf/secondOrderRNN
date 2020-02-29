@@ -70,7 +70,8 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
 
         for batch_iter, batch in enumerate(tqdm(train_dataset)):
             x, y = batch
-            y = y.view(-1)
+            x = x.to(device)
+            y = y.view(-1).to(device)
             
             optimizer.zero_grad()
             y_pred, hidden = model(x, hidden, train=True)
