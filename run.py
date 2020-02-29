@@ -25,22 +25,21 @@ def argParser():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--gpu", dest="gpu", type=int, default=0, help="The gpu number if there's more than one gpu")
     parser.add_argument("--log", dest="log", default='', help="Unique log directory name under log/. If the name is empty, do not store logs")
     parser.add_argument("--log_every", dest="log_every", type=int, default=100, help="Number of itertions between logging to tensorboard within an epoch")
-    parser.add_argument("--lr", dest="lr", type=float, default=3e-4, help="Learning rate for training")
+    parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
     parser.add_argument("--model", dest="model", default="baseline_lstm", help="Name of model to use")
     parser.add_argument("--embedding_dim", dest='embedding_dim', type=int, default=12, help="Size of the word embedding")
+    parser.add_argument("--hidden-size", dest="hidden_dim", type=int, default=256, help="Dimension fo hidden layer")
     parser.add_argument("--num_layers", dest='num_layers', type=int, default=1, help="Number of LSTM layers")
     parser.add_argument("--is_parens", dest="is_parens", type=int, default=1, help="Train on the parenthesis dataset when 1, 0 on TreeBank dataset")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
-    parser.add_argument("--checkpoint", dest="checkpoint", type=str, default="", help="Path to the .pth checkpoint file. Used to continue training from checkpoint")
-    parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
     parser.add_argument("--train-path", dest="train_path", help="Training data file")
     parser.add_argument("--valid-path", dest="valid_path", help="Validation data file")
-    parser.add_argument("--bptt-len", dest="bptt_len", default=32, type=int, help="Length of sequences for backpropagation through time")
-    parser.add_argument("--hidden-size", dest="hidden_dim", type=int, default=256, help="Dimension fo hidden layer")
+    parser.add_argument("--checkpoint", dest="checkpoint", type=str, default="", help="Path to the .pth checkpoint file. Used to continue training from checkpoint")
     parser.add_argument("--dropout", dest="dropout_rate", type=float, default=0.3, help="Dropout rate")
+    parser.add_argument("--gpu", dest="gpu", type=str, default='0', help="The gpu number if there's more than one gpu")
+    parser.add_argument("--lr", dest="lr", type=float, default=3e-4, help="Learning rate for training")
 
     args = parser.parse_args()
     return args
@@ -48,7 +47,6 @@ def argParser():
 
 def train(model, train_dataset, val_dataset, args, device, logger=None):
     batch_size = args.batch_size
-    backprop_len = args.bptt_len
     log_every = args.log_every
     lr = args.lr
     num_epochs = args.epochs
