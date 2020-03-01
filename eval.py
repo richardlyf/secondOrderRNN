@@ -42,7 +42,7 @@ def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
     return dists
 
 
-def LDPA(y, y_pred, init, batch_size, close_idx=[4, 5], open_idx=[2, 3], thresh=0.8, pad_idx=0):
+def LDPA(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], open_idx=[2, 3], thresh=0.8, pad_idx=0):
     """
     Calculate long distance prediction accuracy for a batch of sentences
 
@@ -50,32 +50,34 @@ def LDPA(y, y_pred, init, batch_size, close_idx=[4, 5], open_idx=[2, 3], thresh=
     @param y_pred Tensor(batch_size * seq_len, vocab_size): Prediction distribution for each word in target sentence
     @param init Tensor(batch_size, ): A batch of first characters of each sentence. The target sentence doesn't contain
     the first character of that sentence
+    @param batch_size
+    @param max_dist (int): The maximum sentence length, which is also the maximum distance between open and closed parentheses
     """
 
     # split y into batches
     targets = np.array_split(y.tolist(), batch_size)
     init = init.tolist()
 
-    # calculate max distance
-    max_dist = len(targets[0])
     # Create a dictionary mapping distance to [num close parens at this distance, num predictions above prob threshold at this distance]
     # max_dist is inclusive
-    ldpa = {d : [0, 0] for d in range(max_dist + 1)}
+    ldpa = np.zeros((max_dist, 2), dtype = np.int64)
 
     for i, target in enumerate(targets):
         # calculate distances
-        dists = get_distances(target, init[i], close_idx=[4, 5], open_idx=[2, 3])
+        dists = get_distances(target, init[i], close_idx, open_idx)
 
         # count frequency of each distance
         distances, counts = np.unique([d for d in dists if d], return_counts=True)
         for dist, count in zip(list(distances), list(counts)):
-            ldpa[dist][0] += count
+            ldpa[dist, 0] += count
 
         # calculate long distance prediction accuracy
         for idx, char in enumerate(target):
             if char in close_idx:
                 # Computes the probability weight of the correct closed bracket relative to probability of other closed brackets
-                frac = y_pred[idx + i * max_dist, char] / torch.sum(y_pred[idx + i * max_dist, close_idx])
+                pred_prob = torch.exp(y_pred[idx + i * max_dist, char])
+                close_prob = torch.sum(torch.exp(y_pred[idx + i * max_dist, close_idx]))
+                frac =  pred_prob / close_prob
                 if frac >= thresh:
-                    ldpa[dists[idx]][1] += 1
+                    ldpa[dists[idx], 1] += 1
     return ldpa

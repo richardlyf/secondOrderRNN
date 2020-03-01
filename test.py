@@ -49,16 +49,16 @@ def test_ldpa(vocab):
     y_pred[:, 0:2] = 0.0
 
     # Test 1: 0%
-    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.8)
+    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, max_dist=sent_len, thresh=0.8)
     assert(all([ldpa[i][1] == 0 for i in range(len(ldpa))]))
 
     # Test 2: 100%
-    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.5)
+    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, max_dist=sent_len, thresh=0.5)
     assert(all([ldpa[i][1] / ldpa[i][0] == 1 for i in range(len(ldpa)) if ldpa[i][0]]))
 
     # Test 3: mix 
     y_pred[:, 5] = 0.1
-    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.5)
+    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, max_dist=sent_len, thresh=0.5)
     ratios = [ldpa[i][1] / ldpa[i][0] for i in range(len(ldpa)) if ldpa[i][0]]
     assert(ratios == [5/9, 1/2, 0, 1, 1/2])
 
@@ -74,7 +74,7 @@ def test_ldpa(vocab):
     y_pred[2, vocab.word2id['a)']] = 1 # at dist 1, 0 above thresh
     y_pred[4, vocab.word2id['b)']] = 1 # at dist 1, 1 above thresh
     y_pred[5, vocab.word2id['a)']] = 1 # at dist 3, 1 above thresh
-    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.8)
+    ldpa = LDPA(y=y, y_pred=np.log(y_pred), init=init, batch_size=batch_size, max_dist=sent_len, thresh=0.8)
     assert(ldpa[1][0] == 3), "Expect 3 close at dist 1, got {}".format(ldpa[1][0]) # 3 closed at dist 1
     assert(ldpa[1][1] == 2), "Expect 2 above thresh at dist 1, got {}".format(ldpa[1][1]) # 2 of which above threshold
     assert(ldpa[3][0] == 1), "Expect 1 close at dist 3, got {}".format(ldpa[3][0]) # 1 closed at dist 3

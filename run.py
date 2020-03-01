@@ -136,8 +136,10 @@ def validate_ppl(model, val_dataset, device):
 def validate_parens(model, val_dataset, batch_size, device):
     hidden = model.init_hidden(device)
     # max sentence length is the second dimension of x in val_dataset
-    max_sents_len = val_dataset[0][0].size(1)
-    ldpa_loss = {i : [0, 0] for i in range(max_sents_len + 1)}
+    x, y = next(iter(val_dataset))
+    max_sents_len = x.size()[1]
+    # initialize storage for ldpa loss
+    ldpa_loss = np.zeros((max_sents_len, 2), dtype = np.int64)
     for batch in val_dataset:
         x, y = batch
         x = x.to(device)
@@ -146,17 +148,18 @@ def validate_parens(model, val_dataset, batch_size, device):
 
         # calculate LDPA metric
         first_chars = x[:, 0]
-        ldpa = LDPA(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size)
+        ldpa = LDPA(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
+            max_dist = max_sents_len)
         
         # add to cumulative ldpa loss
-        for dist, c in ldpa.items():
-            ldpa_loss[dist][0] += c[0]
-            ldpa_loss[dist][1] += c[1]
+        ldpa_loss += ldpa
 
     # calculate LDPA ratios
-    ldpa_loss = {k: v[1] / v[0] for k, v in ldpa_loss.items() if v[0]}
-    wcpa = min(ldpa_loss.values())
-    print(ldpa_loss)
+    percentages = {i: ldpa_loss[i, 1] / ldpa_loss[i, 0] 
+        for i in range(ldpa_loss.shape[0])}
+
+    print(percentages)    
+    wcpa = min(percentages.values())
     return wcpa
 
 
