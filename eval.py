@@ -42,25 +42,34 @@ def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
     return dists
 
 
-def LDPA(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], open_idx=[2, 3], thresh=0.8, pad_idx=0):
+def get_LDPA_counts(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], open_idx=[2, 3], thresh=0.8):
     """
-    Calculate long distance prediction accuracy for a batch of sentences
+    The closing distance is the distance between a close paren and its corresponding open paren
+    For each closing distance, count how many parens in the batch close at that distance.
+    For each closing distance, count how many close parens are correctly predicted with a probability 
+    mass > thresh between all close paren predictions.
+    The two counts can be used to compute the long-distance prediction accuracy.
 
     @param y Tensor(batch_size * seq_len, ): A flattened batch of target sentence
-    @param y_pred Tensor(batch_size * seq_len, vocab_size): Prediction distribution for each word in target sentence
-    @param init Tensor(batch_size, ): A batch of first characters of each sentence. The target sentence doesn't contain
-    the first character of that sentence
+    @param y_pred Tensor(batch_size * seq_len, vocab_size): Prediction distribution for each word in 
+    target sentence
+    @param init Tensor(batch_size, ): A batch of first characters of each sentence. The target sentence 
+    doesn't contain the first character of that sentence
     @param batch_size
-    @param max_dist (int): The maximum sentence length, which is also the maximum distance between open and closed parentheses
+    @param max_dist (int): The maximum sentence length, which is also the maximum distance between open 
+    and closed parentheses
+
+    @return ldpa_counts (max_dist + 1, 2): Array holding [num close parens, num prediction above thresh]
+    for each closing distance
     """
 
     # split y into batches
     targets = np.array_split(y.tolist(), batch_size)
     init = init.tolist()
 
-    # Create a dictionary mapping distance to [num close parens at this distance, num predictions above prob threshold at this distance]
+    # create an array that holds [num close parens, num predictions above prob threshold] at each distance
     # max_dist is inclusive
-    ldpa = np.zeros((max_dist, 2), dtype = np.int64)
+    ldpa_counts = np.zeros((max_dist + 1, 2), dtype = np.int64)
 
     for i, target in enumerate(targets):
         # calculate distances
@@ -69,7 +78,7 @@ def LDPA(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], open_idx=[2, 3
         # count frequency of each distance
         distances, counts = np.unique([d for d in dists if d], return_counts=True)
         for dist, count in zip(list(distances), list(counts)):
-            ldpa[dist, 0] += count
+            ldpa_counts[dist, 0] += count
 
         # calculate long distance prediction accuracy
         for idx, char in enumerate(target):
@@ -79,5 +88,5 @@ def LDPA(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], open_idx=[2, 3
                 close_prob = torch.sum(torch.exp(y_pred[idx + i * max_dist, close_idx]))
                 frac =  pred_prob / close_prob
                 if frac >= thresh:
-                    ldpa[dists[idx], 1] += 1
-    return ldpa
+                    ldpa_counts[dists[idx], 1] += 1
+    return ldpa_counts

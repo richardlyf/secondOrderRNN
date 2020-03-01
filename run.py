@@ -97,7 +97,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
         epoch_average_loss = np.mean(epoch_loss)
         epoch_train_ppl = np.exp(epoch_average_loss)
         epoch_val_ppl = validate_ppl(model, val_dataset, device)
-        epoch_val_parens = validate_parens(model, val_dataset, batch_size, device)
+        epoch_val_parens = validate_wcpa(model, val_dataset, batch_size, device)
 
         # Add to logger on tensorboard at the end of an epoch
         if save_to_log:
@@ -133,33 +133,33 @@ def validate_ppl(model, val_dataset, device):
     return val_ppl
     
 
-def validate_parens(model, val_dataset, batch_size, device):
+def validate_wcpa(model, val_dataset, batch_size, device):
+    """
+    Computes worst-case long-distance prediction accuracy (WCPA)
+    """
     hidden = model.init_hidden(device)
     # max sentence length is the second dimension of x in val_dataset
     x, y = next(iter(val_dataset))
-    max_sents_len = x.size()[1]
-    # initialize storage for ldpa loss
-    ldpa_loss = np.zeros((max_sents_len, 2), dtype = np.int64)
+    max_sents_len = x.size(1)
+    # initialize storage for long distance prediction accuracy
+    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
+
     for batch in val_dataset:
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
         y_p, _ = model(x, hidden, train=False)
 
-        # calculate LDPA metric
+        # calculate counts for LDPA metric
         first_chars = x[:, 0]
-        ldpa = LDPA(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
-            max_dist = max_sents_len)
-        
-        # add to cumulative ldpa loss
-        ldpa_loss += ldpa
+        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
+            max_dist=max_sents_len)
+        total_ldpa_counts += ldpa_counts
 
-    # calculate LDPA ratios
-    percentages = {i: ldpa_loss[i, 1] / ldpa_loss[i, 0] 
-        for i in range(ldpa_loss.shape[0])}
-
-    print(percentages)    
-    wcpa = min(percentages.values())
+    # calculate LDPA
+    valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
+    ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]
+    wcpa = min(ldpa)
     return wcpa
 
 
