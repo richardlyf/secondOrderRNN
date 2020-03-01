@@ -132,9 +132,12 @@ def validate_ppl(model, val_dataset, device):
     val_ppl = np.exp(np.mean(aggregate_loss))
     return val_ppl
     
+
 def validate_parens(model, val_dataset, batch_size, device):
     hidden = model.init_hidden(device)
-    ldpa_loss = {i : [0, 0] for i in range(200)} ### NEED TO FIX HARDCODING HERE
+    # max sentence length is the second dimension of x in val_dataset
+    max_sents_len = val_dataset[0][0].size(1)
+    ldpa_loss = {i : [0, 0] for i in range(max_sents_len + 1)}
     for batch in val_dataset:
         x, y = batch
         x = x.to(device)
@@ -142,7 +145,7 @@ def validate_parens(model, val_dataset, batch_size, device):
         y_p, _ = model(x, hidden, train=False)
 
         # calculate LDPA metric
-        first_chars = [s[0].item() for s in x]
+        first_chars = x[:, 0]
         ldpa = LDPA(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size)
         
         # add to cumulative ldpa loss

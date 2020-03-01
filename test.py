@@ -42,25 +42,43 @@ def test_ldpa(vocab):
     test1 = vocab.words2indices(['(a','a)', '(b', 'b)', '(a', 'a)', '(b', 'b)', '(a', 'a)'])
     test2 = vocab.words2indices(['(b','(a','(b', '(a', '(b', 'b)', 'a)', 'b)', 'a)', 'b)'])
     test3 = vocab.words2indices(['(a','(a', 'a)', '(b', '(a', 'a)', 'b)', '(b', 'b)', 'a)'])
-    y = test1[1:] + test2[1:] + test3[1:]
-    init = [test1[0], test2[0], test3[0]]
+    y = torch.tensor(test1[1:] + test2[1:] + test3[1:])
+    init = torch.tensor([test1[0], test2[0], test3[0]])
 
     y_pred = torch.ones((batch_size * sent_len, vocab_size)) / 4
     y_pred[:, 0:2] = 0.0
 
     # Test 1: 0%
-    ldpa = LDPA(y=torch.tensor(y), y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.8)
+    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.8)
     assert(all([ldpa[i][1] == 0 for i in range(len(ldpa))]))
 
     # Test 2: 100%
-    ldpa = LDPA(y=torch.tensor(y), y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.5)
+    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.5)
     assert(all([ldpa[i][1] / ldpa[i][0] == 1 for i in range(len(ldpa)) if ldpa[i][0]]))
 
     # Test 3: mix 
     y_pred[:, 5] = 0.1
-    ldpa = LDPA(y=torch.tensor(y), y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.5)
+    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.5)
     ratios = [ldpa[i][1] / ldpa[i][0] for i in range(len(ldpa)) if ldpa[i][0]]
     assert(ratios == [5/9, 1/2, 0, 1, 1/2])
+
+    # Test 4: robust random
+    batch_size = 2
+    sent_len = 3
+    test1 = vocab.words2indices(['(a','a)', '(b', 'b)'])
+    test2 = vocab.words2indices(['(a','(b', 'b)', 'a)'])
+    y = torch.tensor(test1[1:] + test2[1:])
+    init = torch.tensor([test1[0], test2[0]])
+    y_pred = torch.zeros((batch_size * sent_len, vocab_size))
+    y_pred[0, vocab.word2id['a)']] = 1 # at dist 1, 1 above thresh
+    y_pred[2, vocab.word2id['a)']] = 1 # at dist 1, 0 above thresh
+    y_pred[4, vocab.word2id['b)']] = 1 # at dist 1, 1 above thresh
+    y_pred[5, vocab.word2id['a)']] = 1 # at dist 3, 1 above thresh
+    ldpa = LDPA(y=y, y_pred=y_pred, init=init, batch_size=batch_size, thresh=0.8)
+    assert(ldpa[1][0] == 3), "Expect 3 close at dist 1, got {}".format(ldpa[1][0]) # 3 closed at dist 1
+    assert(ldpa[1][1] == 2), "Expect 2 above thresh at dist 1, got {}".format(ldpa[1][1]) # 2 of which above threshold
+    assert(ldpa[3][0] == 1), "Expect 1 close at dist 3, got {}".format(ldpa[3][0]) # 1 closed at dist 3
+    assert(ldpa[3][1] == 1), "Expect 1 above thresh at dist 3, got {}".format(ldpa[3][1]) # 1 of which above threshold
 
     print("All Sanity Checks Passed!")
     print ("-"*80)
