@@ -127,7 +127,7 @@ class Vocab(object):
             # self.word2id['<end>'] = 2    # End Token
             self.id2word = {v: k for k, v in self.word2id.items()}
             word_freq = Counter(chain(*corpus))
-            unique_words = [w for w, v in word_freq.items()]
+            unique_words = [w for w, v in sorted(word_freq.items())]
             for word in unique_words:
                 self.add(word)
 
