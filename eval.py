@@ -45,7 +45,7 @@ def LDPA(y, y_pred, init, batch_size, close_idx=[3, 5], open_idx = [2, 4], thres
     targets = np.array_split(y.tolist(), batch_size)
 
     # calculate max distance
-    max_dist = len(targets[0])
+    max_dist = len(targets[0]) + 1
     ldpa = {i : [0, 0] for i in range(max_dist)}
 
     for i, target in enumerate(targets):
