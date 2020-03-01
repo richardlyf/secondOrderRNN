@@ -17,7 +17,7 @@ def get_distances(y, init, close_idx=[3, 5], open_idx=[2, 4], pad_idx=0):
     co = dict(zip(close_idx, open_idx))
     # initialize k stacks, one for each type of parenthesis
     stacks = {open_idx[i]: [] for i in range(len(open_idx))}
-    stacks[init] += [0]
+    stacks[init] += [-1]
     # initalize empty matrix of distances
     dists = [None]*len(y)
     # for each close parenthesis, calculate accuracy of prediction
