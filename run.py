@@ -9,7 +9,7 @@ from logger import Logger
 from utils import *
 from model import ModelChooser
 from dataset import *
-
+from eval import *
 
 def argParser():
     """
@@ -63,6 +63,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
 
     log_step = 0
     val_ppl = []
+    
     for epoch in tqdm(range(num_epochs)):
         epoch_loss = []
         hidden = model.init_hidden(device)
@@ -72,11 +73,10 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
             x, y = batch
             x = x.to(device)
             y = y.view(-1).to(device)
-            
             optimizer.zero_grad()
             y_pred, hidden = model(x, hidden, train=True)
-            # Criterion takes in y_pred: (batch_size*seq_len) correct labels and 
-            # y: (batch_size*seq_len, vocab_size) softmax prob of vocabs
+            # Criterion takes in y: (batch_size*seq_len) correct labels and 
+            # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
             loss.backward()
 
@@ -97,6 +97,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
         epoch_average_loss = np.mean(epoch_loss)
         epoch_train_ppl = np.exp(epoch_average_loss)
         epoch_val_ppl, epoch_val_loss = validate_ppl(model, val_dataset, device)
+        epoch_val_wcpa = validate_wcpa(model, val_dataset, batch_size, device)
 
         # Add to logger on tensorboard at the end of an epoch
         if save_to_log:
@@ -104,6 +105,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
             logger.scalar_summary("epoch_train_ppl", epoch_train_ppl, epoch)
             logger.scalar_summary("epoch_val_loss", epoch_val_loss, epoch)
             logger.scalar_summary("epoch_val_ppl", epoch_val_ppl, epoch)
+            logger.scalar_summary("epoch_val_wcpa", epoch_val_wcpa, epoch)
             # Save epoch checkpoint
             save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
             # Save best validation checkpoint
@@ -111,8 +113,8 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
                 save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl")
                 val_ppl.append(epoch_val_ppl)
 
-        print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3}' \
-            .format(epoch + 1, epoch_average_loss, epoch_train_ppl, epoch_val_ppl))
+        print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3} | Val WCPA: {4}' \
+            .format(epoch + 1, epoch_average_loss, epoch_train_ppl, epoch_val_ppl, epoch_val_wcpa))
 
     print('Model trained.')
 
@@ -133,6 +135,36 @@ def validate_ppl(model, val_dataset, device):
     val_ppl = np.exp(val_loss)
     return val_ppl, val_loss
     
+
+def validate_wcpa(model, val_dataset, batch_size, device):
+    """
+    Computes worst-case long-distance prediction accuracy (WCPA)
+    """
+    hidden = model.init_hidden(device)
+    # max sentence length is the second dimension of x in val_dataset
+    x, y = next(iter(val_dataset))
+    max_sents_len = x.size(1)
+    # initialize storage for long distance prediction accuracy
+    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
+
+    for batch in val_dataset:
+        x, y = batch
+        x = x.to(device)
+        y = y.view(-1).to(device)
+        y_p, _ = model(x, hidden, train=False)
+
+        # calculate counts for LDPA metric
+        first_chars = x[:, 0]
+        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
+            max_dist=max_sents_len)
+        total_ldpa_counts += ldpa_counts
+
+    # calculate LDPA
+    valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
+    ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]
+    wcpa = np.min(ldpa)
+    return wcpa
+
 
 def main():
     # setup
@@ -159,7 +191,6 @@ def main():
     kwargs["vocab"] = train_dataset.get_vocab()
     model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
-    
     # train model
     print("Starting training...")
     train(model, train_dataloader, val_dataloader, args, device, logger=logger)
