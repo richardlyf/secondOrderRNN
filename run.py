@@ -140,7 +140,7 @@ def main():
     args = argParser()
     args.is_parens = True if args.is_parens == 1 else False
     device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else "cpu")
-    unique_logdir = create_unique_logdir(args.log)
+    unique_logdir = create_unique_logdir(args.log, args.lr)
     logger = Logger(unique_logdir) if args.log != '' else None
     print("Using device: ", device)
     print("All training logs will be saved to: ", unique_logdir)
