@@ -97,14 +97,15 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             scheduler.step(epoch_val_loss)
 
             # Add to logger on tensorboard at the end of an epoch
-            if save_to_log and epoch % log_every == 0:
+            if save_to_log:
                 logger.scalar_summary("epoch_training_loss", epoch_average_loss, epoch)
                 logger.scalar_summary("epoch_train_ppl", epoch_train_ppl, epoch)
                 logger.scalar_summary("epoch_val_loss", epoch_val_loss, epoch)
                 logger.scalar_summary("epoch_val_ppl", epoch_val_ppl, epoch)
                 logger.scalar_summary("epoch_val_wcpa", epoch_val_wcpa, epoch)
                 # Save epoch checkpoint
-                save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
+                if epoch % log_every == 0:
+                    save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
                 # Save best validation checkpoint
                 if val_ppl == [] or epoch_val_ppl < min(val_ppl):
                     save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl")
