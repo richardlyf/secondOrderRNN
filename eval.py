@@ -64,7 +64,7 @@ def get_LDPA_counts(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], ope
     """
 
     # split y into batches
-    y = y.detach().numpy()
+    y = y.cpu().detach().numpy()
     targets = np.array_split(y, batch_size)
     init = init.tolist()
 
@@ -92,7 +92,7 @@ def get_LDPA_counts(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], ope
     # get the sum of the probability of prediction any close paren
     close_prob = torch.sum(torch.exp(y_pred[:, close_idx][close_paren_indices, :]), dim=1)
     # probability mass on the correct close paren (batch_size * sequence_legnth,)
-    frac = pred_prob / close_prob
+    frac = (pred_prob / close_prob).cpu().detach().numpy()
 
     # Store counts of close parens at each distance
     total_dists, total_counts = np.unique(all_closing_dists, return_counts=True)
