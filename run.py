@@ -160,7 +160,7 @@ def validate_wcpa(model, val_dataset, batch_size, device):
     # calculate LDPA
     valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
     ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]
-    wcpa = min(ldpa)
+    wcpa = np.min(ldpa)
     return wcpa
 
 
