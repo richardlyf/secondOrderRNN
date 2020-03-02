@@ -26,7 +26,7 @@ def argParser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--log", dest="log", default='', help="Unique log directory name under log/. If the name is empty, do not store logs")
-    parser.add_argument("--log-every", dest="log_every", type=int, default=100, help="Number of itertions between logging to tensorboard within an epoch")
+    parser.add_argument("--log-every", dest="log_every", type=int, default=5, help="Number of epochs between logging to tensorboard")
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
     parser.add_argument("--model", dest="model", default="baseline_lstm", help="Name of model to use")
     parser.add_argument("--embedding-dim", dest='embedding_dim', type=int, default=12, help="Size of the word embedding")
@@ -83,14 +83,6 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             torch.nn.utils.clip_grad_norm_(model.lstm.parameters(), 1)
             optimizer.step()
             epoch_loss.append(loss.item())
-
-            # Add to logger on tensorboard within an epoch
-            if save_to_log and batch_iter % log_every == 0:
-                average_train_loss = np.mean(epoch_loss)
-                average_train_ppl = np.exp(average_train_loss)
-                logger.scalar_summary("average_training_loss", average_train_loss, log_step)
-                logger.scalar_summary("average_training_ppl", average_train_ppl, log_step)
-                log_step += 1
         
         # End of epoch, run validations
         model.eval()
@@ -101,7 +93,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             epoch_val_wcpa = validate_wcpa(model, val_dataset, batch_size, device)
 
             # Add to logger on tensorboard at the end of an epoch
-            if save_to_log:
+            if save_to_log and epoch % log_every == 0:
                 logger.scalar_summary("epoch_training_loss", epoch_average_loss, epoch)
                 logger.scalar_summary("epoch_train_ppl", epoch_train_ppl, epoch)
                 logger.scalar_summary("epoch_val_loss", epoch_val_loss, epoch)
