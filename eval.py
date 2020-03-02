@@ -16,8 +16,7 @@ def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
     @return dists (list[int]): None for open parenthesis, distance to corresponding
         open parenthesis for the close parnethesis
     """
-    # map open-to-close and close-to-open indices
-    oc = dict(zip(open_idx, close_idx)) 
+    # map close-to-open indices
     co = dict(zip(close_idx, open_idx))
     # initialize k stacks, one for each type of parenthesis
     stacks = {open_idx[i]: [] for i in range(len(open_idx))}
@@ -31,18 +30,18 @@ def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
         # stop at pad token
         if p == pad_idx:
             return dists
-        if p in oc.keys():
+        if p in open_idx:
             # add open parenthesis to stack
             stacks[p].append(i)
         # handle close parenthesis
-        elif p in co.keys():
+        elif p in close_idx:
             # pop from corresonding stack
             start = stacks[co[p]].pop()
             dists[i] = i - start
     return dists
 
 
-def get_LDPA_counts(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], open_idx=[2, 3], thresh=0.8):
+def get_LDPA_counts(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], open_idx=[2, 3], thresh=0.8, pad_idx=0):
     """
     The closing distance is the distance between a close paren and its corresponding open paren
     For each closing distance, count how many parens in the batch close at that distance.
@@ -64,29 +63,47 @@ def get_LDPA_counts(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], ope
     """
 
     # split y into batches
-    targets = np.array_split(y.tolist(), batch_size)
+    y = y.detach().numpy()
+    targets = np.array_split(y, batch_size)
     init = init.tolist()
 
     # create an array that holds [num close parens, num predictions above prob threshold] at each distance
     # max_dist is inclusive
-    ldpa_counts = np.zeros((max_dist + 1, 2), dtype = np.int64)
+    ldpa_counts = np.zeros((max_dist + 1, 2), dtype=np.int64)
+    all_closing_dists = []
 
     for i, target in enumerate(targets):
         # calculate distances
-        dists = get_distances(target, init[i], close_idx, open_idx)
+        closing_dists = get_distances(target, init[i], close_idx, open_idx, pad_idx)
+        all_closing_dists.append(closing_dists)
 
-        # count frequency of each distance
-        distances, counts = np.unique([d for d in dists if d], return_counts=True)
-        for dist, count in zip(list(distances), list(counts)):
-            ldpa_counts[dist, 0] += count
+    # (batch_size * sequence_length)
+    all_closing_dists = np.asarray(all_closing_dists).reshape(-1)
+    # Take out all the None's corresponding to open parens
+    all_closing_dists = all_closing_dists[all_closing_dists != None]
 
-        # calculate long distance prediction accuracy
-        for idx, char in enumerate(target):
-            if char in close_idx:
-                # Computes the probability weight of the correct closed bracket relative to probability of other closed brackets
-                pred_prob = torch.exp(y_pred[idx + i * max_dist, char])
-                close_prob = torch.sum(torch.exp(y_pred[idx + i * max_dist, close_idx]))
-                frac =  pred_prob / close_prob
-                if frac >= thresh:
-                    ldpa_counts[dists[idx], 1] += 1
+    # get indices of all closed parens
+    close_paren_indices = np.where(np.isin(y, close_idx))[0]
+    # get all actual close parens
+    close_parens = y[close_paren_indices]
+    # get probability of predicting the actual close paren
+    pred_prob = torch.exp(y_pred[close_paren_indices, close_parens])
+    # get the sum of the probability of prediction any close paren
+    close_prob = torch.sum(torch.exp(y_pred[:, close_idx][close_paren_indices, :]), dim=1)
+    # probability mass on the correct close paren (batch_size * sequence_legnth,)
+    frac = pred_prob / close_prob
+
+    # Store counts of close parens at each distance
+    total_dists, total_counts = np.unique(all_closing_dists, return_counts=True)
+    total_dists = total_dists.astype(int)
+    ldpa_counts[total_dists, 0] = total_counts
+
+    # Store counts of predictions above threshold
+    dists_above_thresh = all_closing_dists[np.where(frac >= thresh)[0]]
+    above_dists, above_counts = np.unique(dists_above_thresh, return_counts=True)
+    above_dists = above_dists.astype(int)
+    # If dists is not empty. It's empty if nothing is above threshold
+    if len(above_dists) != 0:
+        ldpa_counts[above_dists, 1] = above_counts
+
     return ldpa_counts

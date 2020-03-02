@@ -3,6 +3,7 @@ from dataset import *
 import sys
 import numpy as np
 import torch
+import time
 
 def test_distances(vocab):
     print ("-"*80)
@@ -48,6 +49,7 @@ def test_ldpa(vocab):
     y_pred = torch.ones((batch_size * sent_len, vocab_size)) / 4
     y_pred[:, 0:2] = 0.0
 
+    start = time.time()
     # Test 1: 0%
     ldpa = get_LDPA_counts(y=y, y_pred=y_pred, init=init, batch_size=batch_size, max_dist=sent_len, thresh=0.8)
     assert(all([ldpa[i][1] == 0 for i in range(len(ldpa))]))
@@ -60,7 +62,7 @@ def test_ldpa(vocab):
     y_pred[:, 5] = 0.1
     ldpa = get_LDPA_counts(y=y, y_pred=y_pred, init=init, batch_size=batch_size, max_dist=sent_len, thresh=0.5)
     ratios = [ldpa[i][1] / ldpa[i][0] for i in range(len(ldpa)) if ldpa[i][0]]
-    assert(ratios == [5/9, 1/2, 0, 1, 1/2])
+    assert(ratios == [5/9, 1/2, 0, 1, 1/2]), "Expected {} \n Got {}".format([5/9, 1/2, 0, 1, 1/2], ratios)
 
     # Test 4: robust random
     batch_size = 2
@@ -152,7 +154,7 @@ def test_ldpa(vocab):
     ldpa = ldpa[np.nonzero(ldpa)]
     assert(np.array_equal(ldpa, gt_ldpa)), "gt_ldpa {} \n ldpa {}".format(gt_ldpa, ldpa)
 
-    print("All Sanity Checks Passed!")
+    print("All Sanity Checks Passed! Took time: ", time.time() - start)
     print ("-"*80)
 
 if __name__ == "__main__":
