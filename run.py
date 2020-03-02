@@ -92,7 +92,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
         with torch.no_grad():
             epoch_average_loss = np.mean(epoch_loss)
             epoch_train_ppl = np.exp(epoch_average_loss)
-            epoch_val_ppl, epoch_val_loss = validate_ppl(model, val_dataset, device)
+            epoch_val_ppl, epoch_val_loss = validate_ppl(model, criterion, val_dataset, device)
             epoch_val_wcpa = validate_wcpa(model, val_dataset, batch_size, device)
             scheduler.step(epoch_val_loss)
 
@@ -117,8 +117,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     print('Model trained.')
 
         
-def validate_ppl(model, val_dataset, device):
-    criterion = nn.NLLLoss()
+def validate_ppl(model, criterion, val_dataset, device):
     hidden = model.init_hidden(device)
     aggregate_loss = []
     for batch in val_dataset:
