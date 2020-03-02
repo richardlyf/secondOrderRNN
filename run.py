@@ -94,27 +94,28 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
         
         # End of epoch, run validations
         model.eval()
-        epoch_average_loss = np.mean(epoch_loss)
-        epoch_train_ppl = np.exp(epoch_average_loss)
-        epoch_val_ppl, epoch_val_loss = validate_ppl(model, val_dataset, device)
-        epoch_val_wcpa = validate_wcpa(model, val_dataset, batch_size, device)
+        with torch.no_grad():
+            epoch_average_loss = np.mean(epoch_loss)
+            epoch_train_ppl = np.exp(epoch_average_loss)
+            epoch_val_ppl, epoch_val_loss = validate_ppl(model, val_dataset, device)
+            epoch_val_wcpa = validate_wcpa(model, val_dataset, batch_size, device)
 
-        # Add to logger on tensorboard at the end of an epoch
-        if save_to_log:
-            logger.scalar_summary("epoch_training_loss", epoch_average_loss, epoch)
-            logger.scalar_summary("epoch_train_ppl", epoch_train_ppl, epoch)
-            logger.scalar_summary("epoch_val_loss", epoch_val_loss, epoch)
-            logger.scalar_summary("epoch_val_ppl", epoch_val_ppl, epoch)
-            logger.scalar_summary("epoch_val_wcpa", epoch_val_wcpa, epoch)
-            # Save epoch checkpoint
-            save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
-            # Save best validation checkpoint
-            if val_ppl == [] or epoch_val_ppl < min(val_ppl):
-                save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl")
-                val_ppl.append(epoch_val_ppl)
+            # Add to logger on tensorboard at the end of an epoch
+            if save_to_log:
+                logger.scalar_summary("epoch_training_loss", epoch_average_loss, epoch)
+                logger.scalar_summary("epoch_train_ppl", epoch_train_ppl, epoch)
+                logger.scalar_summary("epoch_val_loss", epoch_val_loss, epoch)
+                logger.scalar_summary("epoch_val_ppl", epoch_val_ppl, epoch)
+                logger.scalar_summary("epoch_val_wcpa", epoch_val_wcpa, epoch)
+                # Save epoch checkpoint
+                save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
+                # Save best validation checkpoint
+                if val_ppl == [] or epoch_val_ppl < min(val_ppl):
+                    save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl")
+                    val_ppl.append(epoch_val_ppl)
 
-        print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3} | Val WCPA: {4}' \
-            .format(epoch + 1, epoch_average_loss, epoch_train_ppl, epoch_val_ppl, epoch_val_wcpa))
+            print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3} | Val WCPA: {4}' \
+                .format(epoch + 1, epoch_average_loss, epoch_train_ppl, epoch_val_ppl, epoch_val_wcpa))
 
     print('Model trained.')
 
