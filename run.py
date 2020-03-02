@@ -40,6 +40,7 @@ def argParser():
     parser.add_argument("--dropout", dest="dropout_rate", type=float, default=0.3, help="Dropout rate")
     parser.add_argument("--gpu", dest="gpu", type=str, default='0', help="The gpu number if there's more than one gpu")
     parser.add_argument("--lr", dest="lr", type=float, default=3e-4, help="Learning rate for training")
+    parser.add_argument("--lr-decay", dest="lr_decay", type=float, default=0.5, help="Factor by which the learning rate decays")
 
     args = parser.parse_args()
     return args
@@ -49,12 +50,14 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     batch_size = args.batch_size
     log_every = args.log_every
     lr = args.lr
+    lr_factor = args.lr_decay
     num_epochs = args.epochs
     save_to_log = logger is not None
     logdir = logger.get_logdir() if logger is not None else None
 
     parameters = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = torch.optim.Adam(params=parameters, lr=lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=lr_factor)
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
 
     # Load checkpoint if specified
@@ -91,6 +94,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             epoch_train_ppl = np.exp(epoch_average_loss)
             epoch_val_ppl, epoch_val_loss = validate_ppl(model, val_dataset, device)
             epoch_val_wcpa = validate_wcpa(model, val_dataset, batch_size, device)
+            scheduler.step(epoch_val_loss)
 
             # Add to logger on tensorboard at the end of an epoch
             if save_to_log and epoch % log_every == 0:
