@@ -154,6 +154,10 @@ def test_ldpa(vocab):
     ldpa = ldpa[np.nonzero(ldpa)]
     assert(np.array_equal(ldpa, gt_ldpa)), "gt_ldpa {} \n ldpa {}".format(gt_ldpa, ldpa)
 
+    # time test
+    for i in range(2000):
+        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_pred, init=first_chars, batch_size=1, max_dist=max_sents_len)
+
     print("All Sanity Checks Passed! Took time: ", time.time() - start)
     print ("-"*80)
 

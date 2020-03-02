@@ -16,7 +16,8 @@ def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
     @return dists (list[int]): None for open parenthesis, distance to corresponding
         open parenthesis for the close parnethesis
     """
-    # map close-to-open indices
+    # map open-to-close and close-to-open indices
+    oc = dict(zip(open_idx, close_idx)) 
     co = dict(zip(close_idx, open_idx))
     # initialize k stacks, one for each type of parenthesis
     stacks = {open_idx[i]: [] for i in range(len(open_idx))}
@@ -30,11 +31,11 @@ def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
         # stop at pad token
         if p == pad_idx:
             return dists
-        if p in open_idx:
+        if p in oc.keys():
             # add open parenthesis to stack
             stacks[p].append(i)
         # handle close parenthesis
-        elif p in close_idx:
+        elif p in co.keys():
             # pop from corresonding stack
             start = stacks[co[p]].pop()
             dists[i] = i - start
