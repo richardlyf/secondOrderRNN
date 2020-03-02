@@ -110,8 +110,8 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
                     save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl")
                     val_ppl.append(epoch_val_ppl)
 
-            print('Epoch {0} | Loss: {1} | Train PPL: {2} | Val PPL: {3} | Val WCPA: {4}' \
-                .format(epoch + 1, epoch_average_loss, epoch_train_ppl, epoch_val_ppl, epoch_val_wcpa))
+            print('Epoch {} | Train Loss: {} | Val Loss: {} | Train PPL: {} | Val PPL: {} | Val WCPA: {}' \
+                .format(epoch + 1, epoch_average_loss, epoch_val_loss, epoch_train_ppl, epoch_val_ppl, epoch_val_wcpa))
 
     print('Model trained.')
 
