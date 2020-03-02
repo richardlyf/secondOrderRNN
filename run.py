@@ -45,7 +45,7 @@ def argParser():
     return args
 
 
-def train(model, train_dataset, val_dataset, args, device, logger=None):
+def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     batch_size = args.batch_size
     log_every = args.log_every
     lr = args.lr
@@ -55,7 +55,7 @@ def train(model, train_dataset, val_dataset, args, device, logger=None):
 
     parameters = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = torch.optim.Adam(params=parameters, lr=lr)
-    criterion = nn.NLLLoss()
+    criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
 
     # Load checkpoint if specified
     if args.checkpoint != "":
@@ -189,12 +189,13 @@ def main():
 
     # build model
     kwargs = vars(args) # Turns args into a dictionary
-    kwargs["vocab"] = train_dataset.get_vocab()
+    vocab = train_dataset.get_vocab()
+    kwargs["vocab"] = vocab
     model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
     # train model
     print("Starting training...")
-    train(model, train_dataloader, val_dataloader, args, device, logger=logger)
+    train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
 
 
 if __name__ == "__main__":

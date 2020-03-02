@@ -131,6 +131,7 @@ class Vocab(object):
             for word in unique_words:
                 self.add(word)
 
+        self.pad_id = self.word2id['<pad>']
         self.unk_id = self.word2id['<unk>']
         self.id2word = {v: k for k, v in self.word2id.items()}
         

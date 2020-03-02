@@ -59,15 +59,15 @@ class LSTMLanguageModel(nn.Module):
         @param x: (batch_size, sequence_length)
         """
         embedded = self.embeddings(x)
-        embedded = self.drop(embedded) if train else embedded
+        # embedded = self.drop(embedded) if train else embedded
         # (sequence_length, batch_size, embedding_dim) to fit LSTM input shape requirement
         embedded = torch.transpose(embedded, 0, 1).contiguous()
         
-        lstm_output, hdn = self.lstm(embedded, hidden)
+        lstm_output, hdn = self.lstm(embedded)
         reshaped = lstm_output.view(-1, lstm_output.size(2))
-        dropped = self.drop(reshaped) if train else reshaped
+        # dropped = self.drop(reshaped) if train else reshaped
         
-        decoded = self.linear(dropped)
+        decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
