@@ -13,7 +13,7 @@ def ModelChooser(model_name, **kwargs):
 
 class LSTMLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
-    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, num_layers=1, is_parens=True, **kwargs):
+    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, num_layers=1, **kwargs):
         super(LSTMLanguageModel, self).__init__()
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
@@ -72,5 +72,3 @@ class LSTMLanguageModel(nn.Module):
         logits = F.log_softmax(decoded, dim=1)
                 
         return logits, self.detach_hidden(hdn)
-
-
