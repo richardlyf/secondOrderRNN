@@ -24,18 +24,17 @@ def create_unique_logdir(logdir, lr, root_logdir="log/"):
     return unique_logdir
 
 
-def save_checkpoint(logdir, model, optimizer, epoch, loss, lr, best=None, score=None):
+def save_checkpoint(logdir, model, optimizer, epoch, loss, lr, best=None):
     """
     Saves model checkpoint after each epoch
 
     best: An optional string used to specify which validation method this best
     checkpoint is for
-    score: The best score for the given validation metric specified by parameter best
     """
     checkpoint_dir = os.path.join(logdir, "checkpoints")
     os.makedirs(checkpoint_dir, exist_ok=True)
     if best:
-        checkpoint_path = "{}/best_{}_{}.pth".format(checkpoint_dir, best, score)
+        checkpoint_path = "{}/best_{}.pth".format(checkpoint_dir, best)
     else:
         checkpoint_path = "{}/lr{}_epoch{}.pth".format(checkpoint_dir, lr, epoch)
 
