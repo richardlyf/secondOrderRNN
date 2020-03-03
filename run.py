@@ -11,6 +11,9 @@ from model import ModelChooser
 from dataset import *
 from eval import *
 
+np.set_printoptions(precision=3)
+np.set_printoptions(suppress=True)
+
 def argParser():
     """
     This function creates a parser object which parses all the flags from the command line
@@ -25,6 +28,7 @@ def argParser():
     """
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--mode", dest="mode", default='train', help="Mode is one of 'train', 'test'")
     parser.add_argument("--log", dest="log", default='', help="Unique log directory name under log/. If the name is empty, do not store logs")
     parser.add_argument("--log-every", dest="log_every", type=int, default=5, help="Number of epochs between logging to tensorboard")
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
@@ -36,6 +40,7 @@ def argParser():
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--train-path", dest="train_path", help="Training data file")
     parser.add_argument("--valid-path", dest="valid_path", help="Validation data file")
+    parser.add_argument("--test-path", dest="test_path", help="Testing data file")
     parser.add_argument("--checkpoint", dest="checkpoint", type=str, default="", help="Path to the .pth checkpoint file. Used to continue training from checkpoint")
     parser.add_argument("--dropout", dest="dropout_rate", type=float, default=0.3, help="Dropout rate")
     parser.add_argument("--gpu", dest="gpu", type=str, default='0', help="The gpu number if there's more than one gpu")
@@ -83,7 +88,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             loss = criterion(y_pred, y)
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(model.lstm.parameters(), 1)
+            # torch.nn.utils.clip_grad_norm_(model.lstm.parameters(), 1)
             optimizer.step()
             epoch_loss.append(loss.item())
         
@@ -116,6 +121,21 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
 
     print('Model trained.')
 
+def test(checkpoint, model, vocab, test_dataset, args, device):
+    batch_size = args.batch_size
+
+    # load model from checkpoint
+    model =  load_checkpoint(checkpoint, model, device)
+    model.eval() # don't use dropout
+
+    # initialize criterion 
+    criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
+    with torch.no_grad(): # for reals, don't use dropout
+        test_ppl, test_loss = validate_ppl(model, criterion, test_dataset, device)
+        test_wcpa = validate_wcpa(model, test_dataset, batch_size, device)
+
+    print(f'Test Loss: {test_loss} | Test PPL: {test_ppl} | Test WCPA: {test_wcpa}')
+
         
 def validate_ppl(model, criterion, val_dataset, device):
     aggregate_loss = []
@@ -147,7 +167,7 @@ def validate_wcpa(model, val_dataset, batch_size, device):
         x = x.to(device)
         y = y.view(-1).to(device)
         y_p = model(x, train=False)
-
+        
         # calculate counts for LDPA metric
         first_chars = x[:, 0]
         ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
@@ -157,6 +177,7 @@ def validate_wcpa(model, val_dataset, batch_size, device):
     # calculate LDPA
     valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
     ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]
+    print(ldpa)
     wcpa = np.min(ldpa)
     return wcpa
 
@@ -179,6 +200,9 @@ def main():
     val_dataset = ParensDataset(args.valid_path)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=4)
+    if args.mode == 'test':
+        test_dataset = ParensDataset(args.test_path)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=4)
     print("Done!")
 
     # build model
@@ -187,10 +211,14 @@ def main():
     kwargs["vocab"] = vocab
     model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
-    # train model
-    print("Starting training...")
-    train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
 
+    if args.mode == 'train':
+        # train model
+        print("Starting training...")
+        train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
+    if args.mode == 'test':
+        print("Starting testing...")
+        test(args.checkpoint, model, vocab, test_dataloader, args, device)
 
 if __name__ == "__main__":
     main()
