@@ -56,7 +56,7 @@ class LSTMLanguageModel(nn.Module):
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
-        return logits, self.detach_hidden(hdn)
+        return logits
 
 
 class LSTMLanguageModel2(nn.Module):
@@ -128,4 +128,4 @@ class LSTMLanguageModel2(nn.Module):
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
-        return logits, self.detach_hidden(hdn)
+        return logits
