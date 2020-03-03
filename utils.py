@@ -56,7 +56,7 @@ def load_checkpoint(model_checkpoint, model, device, optimizer=None):
     """
     checkpoint = torch.load(model_checkpoint, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
-    if optimizer:
+    if optimizer is not None:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     model.to(device)
     return model

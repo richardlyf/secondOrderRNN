@@ -63,7 +63,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
 
     # Load checkpoint if specified
     if args.checkpoint != "":
-        model = load_checkpoint(args.checkpoint, model, optimizer, device)
+        model = load_checkpoint(args.checkpoint, model, device, optimizer)
 
     log_step = 0
     val_ppl = []
