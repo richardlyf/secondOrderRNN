@@ -70,14 +70,14 @@ class LSTMLanguageModel2(nn.Module):
         vocab_size = len(vocab)
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
         
-        self.lstm = nn.LSTM(
-            input_size = embedding_dim, 
-            hidden_size = self.hidden_dim, 
-            num_layers = num_layers,
-            dropout = dropout_rate)
+        # self.lstm = nn.LSTM(
+        #     input_size = embedding_dim, 
+        #     hidden_size = self.hidden_dim, 
+        #     num_layers = num_layers,
+        #     dropout = dropout_rate)
 
         # Here we introduce the mLSTM
-        self.mlstm = paren_mLSTM(
+        self.lstm = paren_mLSTM(
             emb_dim = embedding_dim,
             hidden_size=hidden_dim,
             vocab = vocab,
@@ -119,7 +119,7 @@ class LSTMLanguageModel2(nn.Module):
         embedded = torch.transpose(embedded, 0, 1).contiguous()
         
 #       lstm_output, hdn = self.lstm(embedded)
-        lstm_output = self.mlstm(x, embedded)
+        lstm_output, hdn = self.lstm(x, embedded)
 
         reshaped = lstm_output.view(-1, lstm_output.size(2))
         # dropped = self.drop(reshaped) if train else reshaped
