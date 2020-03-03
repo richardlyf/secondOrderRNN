@@ -108,7 +108,7 @@ class LSTMLanguageModel2(nn.Module):
         return tuple([h.detach() for h in hidden])
         
 
-    def forward(self, x, hidden, train=True):
+    def forward(self, x, train=True):
         """
         Predict, return hidden state so it can be used to intialize the next hidden state 
         @param x: (batch_size, sequence_length)
@@ -119,7 +119,7 @@ class LSTMLanguageModel2(nn.Module):
         embedded = torch.transpose(embedded, 0, 1).contiguous()
         
 #       lstm_output, hdn = self.lstm(embedded)
-        lstm_output, hdn = self.mlstm(x, embedded)
+        lstm_output = self.mlstm(x, embedded)
 
         reshaped = lstm_output.view(-1, lstm_output.size(2))
         # dropped = self.drop(reshaped) if train else reshaped
