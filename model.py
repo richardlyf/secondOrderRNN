@@ -11,6 +11,11 @@ def ModelChooser(model_name, **kwargs):
     if model_name == "baseline_lstm":
         return LSTMLanguageModel(**kwargs)
     if model_name == "mLSTM":
+        assignments = {
+            0: [0, 2, 3],
+            1: [1, 4, 5]
+        }
+        kwargs["assignments"] = assignments
         return LSTMLanguageModel2(**kwargs)
 
 
