@@ -134,7 +134,7 @@ def test(checkpoint, model, vocab, test_dataset, args, device):
         test_ppl, test_loss = validate_ppl(model, criterion, test_dataset, device)
         test_wcpa = validate_wcpa(model, test_dataset, batch_size, device)
 
-    print(f'Test Loss: {test_loss} | Test PPL: {test_ppl} | Test WCPA: {test_wcpa}')
+    print('Test Loss: {test_loss} | Test PPL: {test_ppl} | Test WCPA: {test_wcpa}')
 
         
 def validate_ppl(model, criterion, val_dataset, device):
