@@ -70,8 +70,11 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     if args.checkpoint != "":
         model = load_checkpoint(args.checkpoint, model, device, optimizer)
 
-    log_step = 0
-    val_ppl = []
+    min_val_loss = None
+    early_stopping_counter = 0
+    # Limit step to wait for 2x lr decay patience.
+    # After lr decay if the model still did not improve, stop it
+    early_stopping_limit = 2 * patience
     
     for epoch in tqdm(range(num_epochs)):
         epoch_loss = []
@@ -101,6 +104,17 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             epoch_val_wcpa, _ = validate_wcpa(model, val_dataset, batch_size, device)
             scheduler.step(epoch_val_loss)
 
+            # Check for early stopping
+            if min_val_loss is None or epoch_val_loss < min_val_loss:
+                min_val_loss = epoch_val_loss
+                early_stopping_counter = 0
+            else:
+                early_stopping_counter += 1
+
+            if early_stopping_counter >= early_stopping_limit:
+                print("Early stopping after waiting {} epochs".format(early_stopping_limit))
+                break
+
             # Add to logger on tensorboard at the end of an epoch
             if save_to_log:
                 logger.scalar_summary("epoch_training_loss", epoch_average_loss, epoch)
@@ -112,14 +126,14 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
                 if epoch % log_every == 0:
                     save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr)
                 # Save best validation checkpoint
-                if val_ppl == [] or epoch_val_ppl < min(val_ppl):
+                if epoch_val_loss == min_val_loss:
                     save_checkpoint(logdir, model, optimizer, epoch, epoch_average_loss, lr, "val_ppl")
-                    val_ppl.append(epoch_val_ppl)
 
             print('Epoch {} | Train Loss: {} | Val Loss: {} | Train PPL: {} | Val PPL: {} | Val WCPA: {}' \
                 .format(epoch + 1, epoch_average_loss, epoch_val_loss, epoch_train_ppl, epoch_val_ppl, epoch_val_wcpa))
 
     print('Model trained.')
+
 
 def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     batch_size = args.batch_size
