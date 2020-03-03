@@ -66,7 +66,9 @@ class LSTMLanguageModel(nn.Module):
 
 class LSTMLanguageModel2(nn.Module):
     """ simple LSTM neural network language model """     
-    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, num_layers=1, **kwargs):
+    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, \
+                num_layers=1, device=None, assignments=None, **kwargs):
+
         super(LSTMLanguageModel2, self).__init__()
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
@@ -83,10 +85,11 @@ class LSTMLanguageModel2(nn.Module):
 
         # Here we introduce the mLSTM
         self.lstm = paren_mLSTM(
-            emb_dim = embedding_dim,
+            embed_size=embedding_dim,
             hidden_size=hidden_dim,
-            vocab = vocab,
-            device = "None")
+            vocab=vocab,
+            assignments=assignments,
+            device=device)
 
         self.linear = nn.Linear(
             in_features = self.hidden_dim, 
