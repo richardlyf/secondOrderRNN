@@ -139,7 +139,8 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
         save_path = os.path.abspath(os.path.join(checkpoint ,"../.."))
         plot_ldpa(graph_data, save_path=save_path)
 
-    print(f'Test Loss: {test_loss} | Test PPL: {test_ppl} | Test WCPA: {test_wcpa}')
+    print('Test Loss: {} | Test PPL: {} | Test WCPA: {}' \
+        .format(test_loss, test_ppl, test_wcpa))
 
         
 def validate_ppl(model, criterion, val_dataset, device):
