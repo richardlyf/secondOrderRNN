@@ -33,27 +33,9 @@ class LSTMLanguageModel(nn.Module):
             out_features = vocab_size)
 
         self.drop = nn.Dropout(p=dropout_rate)
-
-
-    def init_hidden(self, device):
-        direction = 2 if self.lstm.bidirectional else 1
-        return (
-            Variable(torch.zeros(
-                direction*self.lstm.num_layers, 
-                self.batch_size, 
-                self.hidden_dim)).to(device), 
-            Variable(torch.zeros(
-                direction*self.lstm.num_layers, 
-                self.batch_size, 
-                self.hidden_dim)).to(device))
-
-
-    def detach_hidden(self, hidden):
-        """ util function to keep down number of graphs """
-        return tuple([h.detach() for h in hidden])
         
 
-    def forward(self, x, hidden, train=True):
+    def forward(self, x, train=True):
         """
         Predict, return hidden state so it can be used to intialize the next hidden state 
         @param x: (batch_size, sequence_length)
@@ -71,4 +53,4 @@ class LSTMLanguageModel(nn.Module):
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
-        return logits, self.detach_hidden(hdn)
+        return logits
