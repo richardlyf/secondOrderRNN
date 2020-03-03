@@ -49,13 +49,14 @@ def save_checkpoint(logdir, model, optimizer, epoch, loss, lr, best=None):
         print("Saving checkpoint to lr{}_epoch{}".format(lr, epoch))
 
 
-def load_checkpoint(model_checkpoint, model, optimizer, device):
+def load_checkpoint(model_checkpoint, model, device, optimizer=None):
     """
     Loads a pretrained checkpoint to continue training
     model_checkpoint: Path of the model_checkpoint that ends with .pth
     """
     checkpoint = torch.load(model_checkpoint, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    if optimizer:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     model.to(device)
     return model

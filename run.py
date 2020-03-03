@@ -30,7 +30,7 @@ def argParser():
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
     parser.add_argument("--model", dest="model", default="baseline_lstm", help="Name of model to use")
     parser.add_argument("--embedding-dim", dest='embedding_dim', type=int, default=12, help="Size of the word embedding")
-    parser.add_argument("--hidden-size", dest="hidden_dim", type=int, default=256, help="Dimension fo hidden layer")
+    parser.add_argument("--hidden-size", dest="hidden_dim", type=int, default=256, help="Dimension of hidden layer")
     parser.add_argument("--num-layers", dest='num_layers', type=int, default=1, help="Number of LSTM layers")
     parser.add_argument("--is-parens", dest="is_parens", type=int, default=1, help="Train on the parenthesis dataset when 1, 0 on TreeBank dataset")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
@@ -41,7 +41,7 @@ def argParser():
     parser.add_argument("--gpu", dest="gpu", type=str, default='0', help="The gpu number if there's more than one gpu")
     parser.add_argument("--lr", dest="lr", type=float, default=3e-4, help="Learning rate for training")
     parser.add_argument("--lr-decay", dest="lr_decay", type=float, default=0.5, help="Factor by which the learning rate decays")
-
+    parser.add_argument("--patience", dest="patience", type=int, default=3, help="Learning rate decay scheduler patience, number of epochs")
     args = parser.parse_args()
     return args
 
@@ -51,13 +51,14 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     log_every = args.log_every
     lr = args.lr
     lr_factor = args.lr_decay
+    patience = args.patience
     num_epochs = args.epochs
     save_to_log = logger is not None
     logdir = logger.get_logdir() if logger is not None else None
 
     parameters = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = torch.optim.Adam(params=parameters, lr=lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=lr_factor)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=lr_factor, patience=patience)
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
 
     # Load checkpoint if specified
@@ -69,7 +70,6 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     
     for epoch in tqdm(range(num_epochs)):
         epoch_loss = []
-        hidden = model.init_hidden(device)
         model.train()
 
         for batch_iter, batch in enumerate(tqdm(train_dataset)):
@@ -77,7 +77,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             x = x.to(device)
             y = y.view(-1).to(device)
             optimizer.zero_grad()
-            y_pred, hidden = model(x, hidden, train=True)
+            y_pred = model(x, train=True)
             # Criterion takes in y: (batch_size*seq_len) correct labels and 
             # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
@@ -118,13 +118,12 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
 
         
 def validate_ppl(model, criterion, val_dataset, device):
-    hidden = model.init_hidden(device)
     aggregate_loss = []
     for batch in val_dataset:
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
-        y_p, _ = model(x, hidden, train=False)
+        y_p = model(x, train=False)
         
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())        
@@ -137,7 +136,6 @@ def validate_wcpa(model, val_dataset, batch_size, device):
     """
     Computes worst-case long-distance prediction accuracy (WCPA)
     """
-    hidden = model.init_hidden(device)
     # max sentence length is the second dimension of x in val_dataset
     x, y = next(iter(val_dataset))
     max_sents_len = x.size(1)
@@ -148,7 +146,7 @@ def validate_wcpa(model, val_dataset, batch_size, device):
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
-        y_p, _ = model(x, hidden, train=False)
+        y_p = model(x, train=False)
 
         # calculate counts for LDPA metric
         first_chars = x[:, 0]
