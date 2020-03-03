@@ -1,7 +1,7 @@
 import os
 import time
 import torch
-
+import matplotlib.pyplot as plt
 
 def create_unique_logdir(logdir, lr, root_logdir="log/"):
     """
@@ -60,3 +60,12 @@ def load_checkpoint(model_checkpoint, model, device, optimizer=None):
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     model.to(device)
     return model
+
+def plot_ldpa(ldpa, save_path):
+    dist = [i for i in range(len(ldpa))]
+    fig, ax = plt.subplots(dpi=150)
+    ax.set_ylabel('Prediction Accuracy')
+    ax.set_xlabel('Distance Between Open / Close')
+    ax.scatter(dist, ldpa, color='b')
+    ax.set_title('Long Distance Prediction Accuracy', fontsize=12)
+    plt.savefig(os.path.join(save_path, "test_ldpa.png"))

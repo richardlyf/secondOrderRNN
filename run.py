@@ -98,7 +98,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             epoch_average_loss = np.mean(epoch_loss)
             epoch_train_ppl = np.exp(epoch_average_loss)
             epoch_val_ppl, epoch_val_loss = validate_ppl(model, criterion, val_dataset, device)
-            epoch_val_wcpa = validate_wcpa(model, val_dataset, batch_size, device)
+            epoch_val_wcpa, _ = validate_wcpa(model, val_dataset, batch_size, device)
             scheduler.step(epoch_val_loss)
 
             # Add to logger on tensorboard at the end of an epoch
@@ -121,7 +121,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
 
     print('Model trained.')
 
-def test(checkpoint, model, vocab, test_dataset, args, device):
+def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     batch_size = args.batch_size
 
     # load model from checkpoint
@@ -132,7 +132,12 @@ def test(checkpoint, model, vocab, test_dataset, args, device):
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
     with torch.no_grad(): # for reals, don't use dropout
         test_ppl, test_loss = validate_ppl(model, criterion, test_dataset, device)
-        test_wcpa = validate_wcpa(model, test_dataset, batch_size, device)
+        test_wcpa, graph_data = validate_wcpa(model, test_dataset, batch_size, device)
+
+    # plot ldpa by distance
+    if plot:
+        save_path = os.path.abspath(os.path.join(checkpoint ,"../.."))
+        plot_ldpa(graph_data, save_path=save_path)
 
     print('Test Loss: {test_loss} | Test PPL: {test_ppl} | Test WCPA: {test_wcpa}')
 
@@ -167,7 +172,7 @@ def validate_wcpa(model, val_dataset, batch_size, device):
         x = x.to(device)
         y = y.view(-1).to(device)
         y_p = model(x, train=False)
-        
+
         # calculate counts for LDPA metric
         first_chars = x[:, 0]
         ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
@@ -175,11 +180,12 @@ def validate_wcpa(model, val_dataset, batch_size, device):
         total_ldpa_counts += ldpa_counts
 
     # calculate LDPA
-    valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
-    ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]
-    print(ldpa)
-    wcpa = np.min(ldpa)
-    return wcpa
+    ldpa = [total_ldpa_counts[i, 1] / total_ldpa_counts[i, 0] 
+            if total_ldpa_counts[i, 0] else float('nan')
+            for i in range(max_sents_len)]      
+    # ignore nan (all even indices are nan) 
+    wcpa = np.nanmin(ldpa)
+    return wcpa, ldpa
 
 
 def main():
@@ -218,7 +224,7 @@ def main():
         train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
     if args.mode == 'test':
         print("Starting testing...")
-        test(args.checkpoint, model, vocab, test_dataloader, args, device)
+        test(args.checkpoint, model, vocab, test_dataloader, args, device, plot=True)
 
 if __name__ == "__main__":
     main()
