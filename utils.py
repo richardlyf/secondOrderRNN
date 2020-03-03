@@ -61,8 +61,9 @@ def load_checkpoint(model_checkpoint, model, device, optimizer=None):
     model.to(device)
     return model
 
-def plot_ldpa(ldpa, save_path):
-    dist = [i for i in range(len(ldpa))]
+def plot_ldpa(graph_data, save_path):
+    ldpa = graph_data[1]
+    dist = graph_data[0]
     fig, ax = plt.subplots(dpi=150)
     ax.set_ylabel('Prediction Accuracy')
     ax.set_xlabel('Distance Between Open / Close')

@@ -139,7 +139,7 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
         save_path = os.path.abspath(os.path.join(checkpoint ,"../.."))
         plot_ldpa(graph_data, save_path=save_path)
 
-    print('Test Loss: {test_loss} | Test PPL: {test_ppl} | Test WCPA: {test_wcpa}')
+    print(f'Test Loss: {test_loss} | Test PPL: {test_ppl} | Test WCPA: {test_wcpa}')
 
         
 def validate_ppl(model, criterion, val_dataset, device):
@@ -180,12 +180,10 @@ def validate_wcpa(model, val_dataset, batch_size, device):
         total_ldpa_counts += ldpa_counts
 
     # calculate LDPA
-    ldpa = [total_ldpa_counts[i, 1] / total_ldpa_counts[i, 0] 
-            if total_ldpa_counts[i, 0] else float('nan')
-            for i in range(max_sents_len)]      
-    # ignore nan (all even indices are nan) 
-    wcpa = np.nanmin(ldpa)
-    return wcpa, ldpa
+    valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
+    ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
+    wcpa = np.min(ldpa) 
+    return wcpa, (valid_dist, ldpa)
 
 
 def main():
