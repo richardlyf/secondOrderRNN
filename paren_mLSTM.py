@@ -38,15 +38,13 @@ class paren_mLSTM(nn.Module):
         for i in range(num_cells):
             self.lstm_list.append(nn.LSTMCell(emb_dim, hidden_size, bias=bias))
 
-        # Initialize parentheses embeddings
-        self.embeddings = nn.Embedding(len(vocab), emb_dim) #TODO: add pad_idx?
-
         # Preserve arguments 
-        self.assignments = input_assignment 
+        self.vocab = vocab
+        self.assignments = {'<pad>': 0, '<unk>': 1, '(a': 0, 'a)': 1, '(b': 0, 'b)': 1}
         self.hidden_size = hidden_size 
         self.num_cells = num_cells
 
-    def forward(self, input, dec_states=None, train=True):
+    def forward(self, input, input_embed, dec_states=None, train=True):
         """
         Fun stuff going on here. The difficulty lies in not being able to apply just one of our LSTM cells to 
         an entire sample, but still wanting to batch. So, we construct a few different pieces
@@ -58,40 +56,42 @@ class paren_mLSTM(nn.Module):
         (3) Run the specific LSTMCell on the mini_batch
         (4) Place the outputs into their appropriate location in dec_states
         -------------------------------
-        @param input (Tensor of ints): input of size (batch_size, sen_len)
+        @param input (Tensor of ints): input of size (sen_len, batch_size)
         @param dec_states (List[(Tensor, Tensor)]) input_assignment
         @param train (boolean): allows for dropout TODO
 
         @ return combined_outputs(Tensor): Output tensor of size (batch_size, 2 * hidden_size)
         """
         batch_size, sen_len = input.shape
-        input_embed = self.embeddings(input)
         
         # dec_states dim=0 will hold the two Tensors representing the 
         # sentences current hidden and cell states at each time step
         if dec_states == None:
             dec_states = torch.zeros((batch_size, 2, self.hidden_size))
 
+        # outputs to be returned at the end of the function and used to make prediction
+        outputs = torch.empty((sen_len, batch_size, self.hidden_size)) 
+
         # Calculate which cell each sentence in the batch should be applied to for the entire sentence length
         mini_batch_indices = self.construct_mini_batch_indices(input)
 
         for i in range(sen_len):
             # All embeddings at the current time-step
-            time_step_embeddings = torch.index_select(input_embed, 1, torch.tensor([i]))
+            time_step_embeddings = torch.squeeze(torch.index_select(input_embed, 0, torch.tensor([i])), dim=0)
 
             # need to break into mini batches
             mini_batches = [None] * self.num_cells #may not need to declare these outside of the loop
             mini_dec_states = [None] * self.num_cells
             for j in range(len(mini_batches)):
                 curr_indices = mini_batch_indices[i][j]
-                mini_batches[j] = torch.squeeze(torch.index_select(time_step_embeddings, 0, curr_indices), dim=1)
+#                mini_batches[j] = torch.squeeze(torch.index_select(time_step_embeddings, 0, curr_indices), dim=1)
+                mini_batches[j] = torch.index_select(time_step_embeddings, 0, curr_indices)
                 
                 # need to group past hidden and cell states with the mini_batch
                 mini_dec_states[j] = torch.index_select(dec_states, 0, curr_indices) 
                 # TODO: put these dec_states into tuple form
                 mini_hidden = torch.squeeze(torch.index_select(mini_dec_states[j], 1, torch.tensor([0])), dim=1)
                 mini_cell  = torch.squeeze(torch.index_select(mini_dec_states[j], 1, torch.tensor([1])), dim=1)
-                # need to run mLSTM cell on each mini_batch
                 hidden_outputs, cell_outputs  = self.lstm_list[j](mini_batches[j], (mini_hidden, mini_cell))
                 
                 for k in range(curr_indices.shape[0]): #this might be 1
@@ -99,7 +99,9 @@ class paren_mLSTM(nn.Module):
                     curr_cell = torch.index_select(cell_outputs, 0, torch.tensor([k])) 
                     dec_states[curr_indices[k]] =  torch.cat((curr_hidden, curr_cell), 0)
 
-        return dec_states.reshape((batch_size, 2 * self.hidden_size))
+                    # we additionally want to add curr_hidden to our outputs
+                    outputs[i][k] = curr_hidden
+        return outputs, (torch.index_select(dec_states, 1, torch.tensor([0])), torch.index_select(dec_states, 1, torch.tensor([1])) )  # None is returned to make this compatible with normal LSTM 
         
 
     def construct_mini_batch_indices(self, input):
@@ -115,13 +117,13 @@ class paren_mLSTM(nn.Module):
         """
         batch, sen_len = input.shape
         indices = [] 
-
         for i in range(sen_len):
             indices.append([])
             tokens = torch.index_select(input, 1, torch.tensor([i])) 
             for j in range(self.num_cells):
-                indices[i].append(torch.tensor([i for i in range(len(tokens)) if self.assignments[int(tokens[i])] == j]).long())
-
+                lst = [i for i in range(len(tokens)) if self.assignments[self.vocab.id2word[int(tokens[i])]] == j]
+                indices[i].append(torch.tensor(lst).long())
+#                indices[i].append(torch.tensor([self.assignments[self.vocab.id2word[int(tokens[k])]] for k in range(len(tokens)) if self.assignments[self.vocab.id2word[int(tokens[k])]]] == j))
         return indices
 
 
