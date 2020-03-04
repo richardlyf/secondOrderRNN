@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 class paren_mLSTM(nn.Module):
     def __init__(self, embed_size, hidden_size, vocab, assignments, device, bias=True, num_cells=2):
@@ -60,15 +61,16 @@ class paren_mLSTM(nn.Module):
         # dec_states dim=0 will hold the two Tensors representing the 
         # sentences current hidden and cell states at each time step
         if dec_states == None:
-            dec_states = torch.zeros((batch_size, 2, self.hidden_size))
+            dec_states = torch.zeros((batch_size, 2, self.hidden_size), device=input_embed.device)
 
         # outputs to be returned at the end of the function and used to make prediction
-        combined_outputs = torch.empty((seq_len, batch_size, self.hidden_size)) 
+        combined_outputs = torch.empty((seq_len, batch_size, self.hidden_size), device=input_embed.device)
 
         for seq_idx in range(seq_len):
             # All embeddings at the current time-step
+            # (batch_size,)
+            idx_input = input[:, seq_idx]
             # (batch_size, embed_size)
-            idx_input = input[seq_idx]
             idx_input_embeddings = input_embed[seq_idx]
 
             # For each LSTMCell, compute their sub-batches and sub-hidden states
@@ -76,6 +78,9 @@ class paren_mLSTM(nn.Module):
                 sub_batch_indices = np.where(np.isin(idx_input, self.assignments[cell_idx]))
                 # (sub_batch_size, embed_size)
                 sub_batch_embeddings = idx_input_embeddings[sub_batch_indices]
+                # Skip this cell if nothing is assigned to it. Sub-batch is empty
+                if (sub_batch_embeddings.size(0) == 0):
+                    continue
                 # (sub_batch_size, 2, hidden_size)
                 sub_dec_states = dec_states[sub_batch_indices]
                 # (sub_batch_size, 1, hidden_size)
@@ -84,9 +89,10 @@ class paren_mLSTM(nn.Module):
                 sub_hidden = torch.squeeze(sub_hidden, dim=1)
                 sub_cell = torch.squeeze(sub_cell, dim=1)
 
-                sub_hidden, sub_cell = self.lstm_list[cell_idx](sub_batch, (sub_hidden, sub_cell))
+                sub_hidden, sub_cell = self.lstm_list[cell_idx](sub_batch_embeddings, (sub_hidden, sub_cell))
                 # Update corresponding hidden states
-                dec_states[sub_batch_indices] = torch.stack([sub_hidden, sub_cell])
+                dec_states[sub_batch_indices] = torch.stack([sub_hidden, sub_cell], dim=1)
+                dec_states = dec_states.detach()
                 combined_outputs[seq_idx, sub_batch_indices] = sub_hidden
 
         return combined_outputs, (dec_states[:, 0], dec_states[:, 1])
