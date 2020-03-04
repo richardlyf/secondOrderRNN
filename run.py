@@ -150,7 +150,9 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
 
     # plot ldpa by distance
     if plot:
-        save_path = os.path.abspath(os.path.join(checkpoint ,"../.."))
+        dirname, filename = os.path.split(checkpoint)
+        save_path = os.path.abspath(os.path.join(dirname, 
+            "test_ldpa_{}.png".format(os.path.splitext(filename)[0])))
         plot_ldpa(graph_data, save_path=save_path)
 
     print('Test Loss: {} | Test PPL: {} | Test WCPA: {}' \

@@ -69,4 +69,4 @@ def plot_ldpa(graph_data, save_path):
     ax.set_xlabel('Distance Between Open / Close')
     ax.scatter(dist, ldpa, color='b')
     ax.set_title('Long Distance Prediction Accuracy', fontsize=12)
-    plt.savefig(os.path.join(save_path, "test_ldpa.png"))
+    plt.savefig(save_path)
