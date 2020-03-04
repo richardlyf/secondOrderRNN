@@ -51,13 +51,12 @@ class AttentionSecondOrderLSTMCell(customCellBase):
     def __init__(self, vocab, secondOrderSize, input_size, hidden_size, bias=True, **kwargs):
         super(AttentionSecondOrderLSTMCell, self).__init__(input_size, hidden_size)
 
-        self.secondOrderLSTMCells = []
-        self.attentionVectors = []
         stdv = 1.0 / math.sqrt(self.hidden_size)
-        for i in range(secondOrderSize):
-            self.secondOrderLSTMCells.append(nn.LSTMCell(input_size, hidden_size, bias))
-            self.attentionVectors.append(nn.Parameter(torch.Tensor(hidden_size).uniform_(-stdv, stdv)))
-        self.test = nn.Parameter(torch.Tensor(hidden_size).uniform_(-stdv, stdv))
+        self.secondOrderLSTMCells = nn.ModuleList([nn.LSTMCell(input_size, hidden_size, bias)\
+            for i in range(secondOrderSize)])
+        self.attentionVectors = nn.ParameterList([nn.Parameter(torch.Tensor(hidden_size).uniform_(-stdv, stdv))\
+            for i in range(secondOrderSize)])
+
         self.softmax = nn.Softmax(dim=1)
             
     def temperature_softmax(self, x, temperature):
