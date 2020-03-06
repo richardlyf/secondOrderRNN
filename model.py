@@ -37,7 +37,8 @@ class LSTMLanguageModel(nn.Module):
             input_size = embedding_dim, 
             hidden_size = self.hidden_dim, 
             num_layers = num_layers,
-            dropout = dropout_rate)
+            dropout = dropout_rate,
+            batch_first=True)
 
         self.linear = nn.Linear(
             in_features = self.hidden_dim, 
@@ -51,13 +52,15 @@ class LSTMLanguageModel(nn.Module):
         Predict, return hidden state so it can be used to intialize the next hidden state 
         @param x: (batch_size, sequence_length)
         """
+        # (batch_size, sequence_length, embedding_dim)
         embedded = self.embeddings(x)
         # embedded = self.drop(embedded) if train else embedded
-        # (sequence_length, batch_size, embedding_dim) to fit LSTM input shape requirement
-        embedded = torch.transpose(embedded, 0, 1).contiguous()
         
+        # (batch_size, sequence_length, hidden_size)
         lstm_output, hdn = self.lstm(embedded)
-        reshaped = lstm_output.view(-1, lstm_output.size(2))
+
+        # (batch_size * sequence_length, hidden_size)
+        reshaped = lstm_output.reshape(-1, lstm_output.size(2))
         # dropped = self.drop(reshaped) if train else reshaped
         
         decoded = self.linear(reshaped)
