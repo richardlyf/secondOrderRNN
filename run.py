@@ -76,7 +76,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     # After lr decay if the model still did not improve, stop it
     early_stopping_limit = 2 * patience
     
-    for epoch in tqdm(range(num_epochs)):
+    for epoch in range(num_epochs):
         epoch_loss = []
         model.train()
 
