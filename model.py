@@ -106,8 +106,6 @@ class LSTMLanguageModel2(nn.Module):
         """
         embedded = self.embeddings(x)
         # embedded = self.drop(embedded) if train else embedded
-        # (sequence_length, batch_size, embedding_dim) to fit LSTM input shape requirement
-        embedded = torch.transpose(embedded, 0, 1).contiguous()
         
         lstm_output, hdn = self.lstm(x, embedded)
 
@@ -151,8 +149,6 @@ class TESTLanguageModel(nn.Module):
         """
         embedded = self.embeddings(x)
         # embedded = self.drop(embedded) if train else embedded
-        # (sequence_length, batch_size, embedding_dim) to fit LSTM input shape requirement
-        embedded = torch.transpose(embedded, 0, 1).contiguous()
         
         lstm_output, hdn = self.lstm(x, embedded)
 

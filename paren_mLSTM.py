@@ -49,8 +49,8 @@ class paren_mLSTM(nn.Module):
         (3) Run the specific LSTMCell on the mini_batch
         (4) Place the outputs into their appropriate location in dec_states
         -------------------------------
-        @param input Tensor(batch_size, seq_len): input of size (seq_len, batch_size)
-        @param input_embed Tensor(seq_len, batch_size, embed_size): Embedding of the entire input. Input to LSTMCells
+        @param input Tensor(batch_size, seq_len): input of size (batch_size, seq_len)
+        @param input_embed Tensor(batch_size, seq_len, embed_size): Embedding of the entire input. Input to LSTMCells
         @param dec_states Tensor(batch_size, 2, hidden_size): hidden state and cell state used to initalize the LSTMCells
 
         @return combined_outputs Tensor(seq_len, batch_size, hidden_size): Output tensor of size (batch_size, 2 * hidden_size)
@@ -71,7 +71,7 @@ class paren_mLSTM(nn.Module):
             # (batch_size,)
             idx_input = input[:, seq_idx]
             # (batch_size, embed_size)
-            idx_input_embeddings = input_embed[seq_idx]
+            idx_input_embeddings = input_embed[:, seq_idx]
 
             # For each LSTMCell, compute their sub-batches and sub-hidden states
             for cell_idx in range(self.num_cells):
@@ -135,7 +135,7 @@ class test_LSTM(nn.Module):
 
             # All embeddings at the current time-step
             # (batch_size, embed_size)
-            idx_input_embeddings = input_embed[seq_idx]
+            idx_input_embeddings = input_embed[:, seq_idx]
             # update hidden and cell
             hidden, cell = self.lstm_cell[0](idx_input_embeddings, (hidden, cell))
             dec_states = torch.stack([hidden, cell], dim=1)
