@@ -108,7 +108,7 @@ class test_LSTM(nn.Module):
             raise ValueError("'num_cells', 'embd_dim', and 'hidden_layers' must be >= 1")
 
         # Initialize a single LSTMCell
-        self.lstm_cell = nn.LSTMCell(embed_size, hidden_size, bias=bias)
+        self.lstm_cell = nn.ModuleList([nn.LSTMCell(embed_size, hidden_size, bias=bias)])
 
         # Preserve arguments
         self.vocab = vocab
@@ -125,19 +125,20 @@ class test_LSTM(nn.Module):
 
         # outputs to be returned at the end of the function and used to make prediction
         combined_outputs = torch.empty((seq_len, batch_size, self.hidden_size), device=input_embed.device)
-        
-        # initialize hidden and cell
-        hidden, cell = torch.split(dec_states, 1, dim=1)
-        # (sub_batch_size, hidden_size)
-        hidden = torch.squeeze(hidden, dim=1)
-        cell = torch.squeeze(cell, dim=1)
 
         for seq_idx in range(seq_len):
+            # initialize hidden and cell
+            hidden, cell = torch.split(dec_states, 1, dim=1)
+            # (sub_batch_size, hidden_size)
+            hidden = torch.squeeze(hidden, dim=1)
+            cell = torch.squeeze(cell, dim=1)
+
             # All embeddings at the current time-step
             # (batch_size, embed_size)
             idx_input_embeddings = input_embed[seq_idx]
             # update hidden and cell
-            hidden, cell = self.lstm_cell(idx_input_embeddings, (hidden, cell))
+            hidden, cell = self.lstm_cell[0](idx_input_embeddings, (hidden, cell))
+            dec_states = torch.stack([hidden, cell], dim=1)
             # upload combined outputs
             combined_outputs[seq_idx, :] = hidden
 
