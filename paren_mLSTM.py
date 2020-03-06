@@ -121,26 +121,28 @@ class test_LSTM(nn.Module):
         # dec_states dim=0 will hold the two Tensors representing the 
         # sentences current hidden and cell states at each time step
         if dec_states == None:
-            dec_states = torch.zeros((batch_size, 2, self.hidden_size), device=input_embed.device)
+            hidden = torch.zeros((batch_size, self.hidden_size), device=input_embed.device)
+            cell = torch.zeros((batch_size, self.hidden_size), device=input_embed.device)
+            dec_states = (hidden, cell)
 
         # outputs to be returned at the end of the function and used to make prediction
         combined_outputs = torch.empty((batch_size, seq_len, self.hidden_size), device=input_embed.device)
 
         for seq_idx in range(seq_len):
             # initialize hidden and cell
-            hidden, cell = torch.split(dec_states, 1, dim=1)
-            # (sub_batch_size, hidden_size)
-            hidden = torch.squeeze(hidden, dim=1)
-            cell = torch.squeeze(cell, dim=1)
-
-            # All embeddings at the current time-step
-            # (batch_size, embed_size)
-            idx_input_embeddings = input_embed[:, seq_idx]
-            # update hidden and cell
-            hidden, cell = self.lstm_cell[0](idx_input_embeddings, (hidden, cell))
-            dec_states[:] = torch.stack([hidden, cell], dim=1)
-            dec_states = dec_states.detach()
+            hidden, cell = dec_states
+            new_hidden = torch.zeros((batch_size, self.hidden_size), device=input_embed.device)
+            new_cell = torch.zeros((batch_size, self.hidden_size), device=input_embed.device)
+            for i in range(1):
+                # All embeddings at the current time-step
+                # (batch_size, embed_size)
+                idx_input_embeddings = input_embed[:, seq_idx]
+                # update hidden and cell
+                hidden, cell = self.lstm_cell[0](idx_input_embeddings, (hidden, cell))
+                new_hidden[:] = hidden
+                new_cell[:] = cell
+            dec_states = (new_hidden, new_cell)
             # upload combined outputs
-            combined_outputs[:, seq_idx] = hidden
+            combined_outputs[:, seq_idx] = new_hidden
 
-        return combined_outputs, (hidden, cell)
+        return combined_outputs, (new_hidden, new_cell)
