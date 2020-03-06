@@ -12,10 +12,10 @@ def ModelChooser(model_name, **kwargs):
     if model_name == "baseline_lstm":
         return LSTMLanguageModel(**kwargs)
     if model_name == "mLSTM":
-        # Group by open paren close paren
+        # Group by a paren and b paren
         assignments = {
-            0: [0, 2, 3],
-            1: [1, 4, 5]
+            0: [0, 2, 4],
+            1: [1, 3, 5]
         }
         kwargs["assignments"] = assignments
         return LSTMLanguageModel2(**kwargs)
@@ -95,7 +95,6 @@ class LSTMLanguageModel2(nn.Module):
         self.lstm = paren_mLSTM(
             embed_size=embedding_dim,
             hidden_size=hidden_dim,
-            vocab=vocab,
             assignments=assignments,
             num_cells=num_cells,
             device=device)
