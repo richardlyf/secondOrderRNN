@@ -53,7 +53,7 @@ class paren_mLSTM(nn.Module):
         @param input_embed Tensor(batch_size, seq_len, embed_size): Embedding of the entire input. Input to LSTMCells
         @param dec_states Tensor(batch_size, 2, hidden_size): hidden state and cell state used to initalize the LSTMCells
 
-        @return combined_outputs Tensor(seq_len, batch_size, hidden_size): Output tensor of size (batch_size, 2 * hidden_size)
+        @return combined_outputs Tensor(batch_size, seq_len, hidden_size): Output tensor of size (batch_size, 2 * hidden_size)
         """
         input = input.cpu().detach().numpy()
         batch_size, seq_len = input.shape
@@ -64,7 +64,7 @@ class paren_mLSTM(nn.Module):
             dec_states = torch.zeros((batch_size, 2, self.hidden_size), device=input_embed.device)
 
         # outputs to be returned at the end of the function and used to make prediction
-        combined_outputs = torch.empty((seq_len, batch_size, self.hidden_size), device=input_embed.device)
+        combined_outputs = torch.empty((batch_size, seq_len, self.hidden_size), device=input_embed.device)
 
         for seq_idx in range(seq_len):
             # All embeddings at the current time-step
@@ -93,7 +93,7 @@ class paren_mLSTM(nn.Module):
                 # Update corresponding hidden states
                 dec_states[sub_batch_indices] = torch.stack([sub_hidden, sub_cell], dim=1)
                 dec_states = dec_states.detach()
-                combined_outputs[seq_idx, sub_batch_indices] = sub_hidden
+                combined_outputs[sub_batch_indices, seq_idx] = sub_hidden
 
         return combined_outputs, (dec_states[:, 0], dec_states[:, 1])
 
@@ -124,7 +124,7 @@ class test_LSTM(nn.Module):
             dec_states = torch.zeros((batch_size, 2, self.hidden_size), device=input_embed.device)
 
         # outputs to be returned at the end of the function and used to make prediction
-        combined_outputs = torch.empty((seq_len, batch_size, self.hidden_size), device=input_embed.device)
+        combined_outputs = torch.empty((batch_size, seq_len, self.hidden_size), device=input_embed.device)
 
         for seq_idx in range(seq_len):
             # initialize hidden and cell
@@ -140,6 +140,6 @@ class test_LSTM(nn.Module):
             hidden, cell = self.lstm_cell[0](idx_input_embeddings, (hidden, cell))
             dec_states = torch.stack([hidden, cell], dim=1)
             # upload combined outputs
-            combined_outputs[seq_idx, :] = hidden
+            combined_outputs[:, seq_idx] = hidden
 
         return combined_outputs, (hidden, cell)
