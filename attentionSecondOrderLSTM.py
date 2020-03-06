@@ -48,14 +48,15 @@ class AttentionSecondOrderLSTMCell(customCellBase):
     Each LSTMCell has a corresponding attention vector V_i that is multiplied with
     the hidden state to compute the attention score.    
     """
-    def __init__(self, vocab, secondOrderSize, input_size, hidden_size, bias=True, **kwargs):
+    def __init__(self, vocab, second_order_size, input_size, hidden_size, bias=True, **kwargs):
         super(AttentionSecondOrderLSTMCell, self).__init__(input_size, hidden_size)
+        self.hidden_size = hidden_size
+        self.second_order_size = second_order_size
 
         stdv = 1.0 / math.sqrt(self.hidden_size)
         self.secondOrderLSTMCells = nn.ModuleList([nn.LSTMCell(input_size, hidden_size, bias)\
-            for i in range(secondOrderSize)])
-        self.attentionVectors = nn.ParameterList([nn.Parameter(torch.Tensor(hidden_size).uniform_(-stdv, stdv))\
-            for i in range(secondOrderSize)])
+            for i in range(second_order_size)])
+        self.attentionVectors = nn.Parameter(torch.Tensor(second_order_size, hidden_size).uniform_(-stdv, stdv))
 
         self.softmax = nn.Softmax(dim=1)
             
@@ -67,13 +68,45 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         When the temperature is 0.1, the softmax result is effectively one-hot
         There no lower bound to how close the temperature can get to 0
 
-        @param x: (batch_size, secondOrderSize)
+        @param x: (batch_size, second_order_size)
         @param temperature: [1 - 0)
         """
         return self.softmax(x / temperature)
 
-    def forward(self, input, dec_states=None):
+    def forward(self, input, dec_states=None, temperature):
+        """
+        We compute attention using the hidden state h_t. Initially the temperature should be high, so that the attention
+        score is widely distributed. The input embedding is passed through each LSTMCell to obtain second_order_size amount
+        of updated hidden states h_{t+1}. The updated hidden states are then weighted by the attention distribution and 
+        summed to form a single next hidden state. As training goes on, the temperature should decrease, so the attention
+        distribution would only favor one of the LSTMCell's output and the updated hidden state would effectively be the output
+        hidden state of that LSTMCell.
+
+        At time sequence t, given hidden state h_t, we first compute the attention score 
+        attscore_t,i = h_t,i * V_i so that attscore_t has shape (second_order_size, ); i = {1, ... , second_order_size}
+        We then compute the attention distribution alpha_t = temperature_softmax(attscore_t)
+        The attention distribution is used to weight the output hidden states of LSTMCells. We get a single updated hidden state
+        h_{t+1} = \sum_{i=1}^{second_order_size} alpha_t,i * h_{t+1},i
+        The cell state is updated in the same fashion where the final c_{t+1} is the weighted average of new cells states
+
+        @param input Tensor(batch_size, embed_size): Input embedding of a batch for one time sequence
+        @param dec_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state
+        with the same shape
+        @param temperature [1 - 0): Should decrease as the model continues to train. See documentation on temperature_softmax above
+        @return updated_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of updated hidden and cell state
+        """
         self.check_forward_input(input)
+        batch_size, embed_size = input.shape
+
+        if dec_states is None:
+            zeros = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
+            dec_states = (zeros, zeros)
+            
+        # Compute attention score of cells
+        attscore = 
+
+
+
 
 
 class AttentionSecondOrderLSTM(nn.Module):
@@ -83,7 +116,10 @@ class AttentionSecondOrderLSTM(nn.Module):
     def __init__(self):
         pass
 
-    def forward(self, x):
+    def forward(self, input):
+        """
+        @param input Tensor(batch_size, seq_len, embed_size)
+        """
         pass
 
 
