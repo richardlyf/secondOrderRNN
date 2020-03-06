@@ -53,11 +53,11 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         self.hidden_size = hidden_size
         self.second_order_size = second_order_size
 
-        stdv = 1.0 / math.sqrt(self.hidden_size)
         self.secondOrderLSTMCells = nn.ModuleList([nn.LSTMCell(input_size, hidden_size, bias)\
             for i in range(second_order_size)])
-        self.attentionVectors = nn.Parameter(torch.Tensor(second_order_size, hidden_size).uniform_(-stdv, stdv))
-
+        # Each cell has an attention vector V_i of size hidden_size so together they're a matrix 
+        # of size (hidden_size, second_order_size) which is essentially a linear layer with no bias
+        self.attentionScores = torch.nn.Linear(hidden_size, second_order_size, bias=False)
         self.softmax = nn.Softmax(dim=1)
             
     def temperature_softmax(self, x, temperature):
@@ -99,11 +99,26 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         batch_size, embed_size = input.shape
 
         if dec_states is None:
-            zeros = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
-            dec_states = (zeros, zeros)
-            
+            hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
+            cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
+            dec_states = (hidden, cell)
+
+        # (batch_size, hidden_size)
+        hidden_state, cell_state = dec_states
         # Compute attention score of cells
-        attscore = 
+        # (batch_size, second_order_size)
+        attscore = self.attentionScores(hidden_state)
+        # Compute attention distribution
+        alpha = self.temperature_softmax(attscore, temperature)
+
+        # Compute updated hidden and cell state using each LSTMCell
+        updated_hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
+        updated_cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
+        for cell_idx in range(self.second_order_size):
+            lstm_hidden, lstm_cell = self.secondOrderLSTMCells[cell_idx](input, dec_states)
+            updated_hidden = alpha[cell_idx] * lstm_hidden
+            updated_cell = alpha[cell_idx] * lstm_cell
+
 
 
 
