@@ -12,6 +12,7 @@ def ModelChooser(model_name, **kwargs):
     if model_name == "baseline_lstm":
         return LSTMLanguageModel(**kwargs)
     if model_name == "mLSTM":
+        # Group by open paren close paren
         assignments = {
             0: [0, 2, 3],
             1: [1, 4, 5]
@@ -19,6 +20,13 @@ def ModelChooser(model_name, **kwargs):
         kwargs["assignments"] = assignments
         return LSTMLanguageModel2(**kwargs)
     if model_name == "test_lstm":
+        # Group by a paren and b paren
+        assignments = {
+            0: [0, 2, 4],
+            1: [1, 3, 5]
+        }
+        kwargs["assignments"] = assignments
+        kwargs["num_cells"] = 1
         return TESTLanguageModel(**kwargs)
 
 
@@ -121,7 +129,7 @@ class LSTMLanguageModel2(nn.Module):
 
 class TESTLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
-    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, device=None, **kwargs):
+    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, device=None, assignments=None, num_cells=2, **kwargs):
 
         super(TESTLanguageModel, self).__init__()
         self.hidden_dim = hidden_dim
@@ -135,6 +143,8 @@ class TESTLanguageModel(nn.Module):
             embed_size=embedding_dim,
             hidden_size=hidden_dim,
             vocab=vocab,
+            assignments=assignments,
+            num_cells=num_cells,
             device=device)
 
         self.linear = nn.Linear(

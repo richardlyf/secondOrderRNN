@@ -101,18 +101,20 @@ class paren_mLSTM(nn.Module):
 # TEST
 
 class test_LSTM(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab, device, bias=True):
+    def __init__(self, embed_size, hidden_size, vocab, assignments, device, bias=True, num_cells=2):
         super(test_LSTM, self).__init__()
         # Checking proper set up
         if embed_size < 1 or hidden_size < 1:
             raise ValueError("'num_cells', 'embd_dim', and 'hidden_layers' must be >= 1")
 
         # Initialize a single LSTMCell
-        self.lstm_cell = nn.ModuleList([nn.LSTMCell(embed_size, hidden_size, bias=bias)])
+        self.lstm_cell = nn.ModuleList([nn.LSTMCell(embed_size, hidden_size, bias=bias) for i in range(num_cells)])
 
         # Preserve arguments
         self.vocab = vocab
-        self.hidden_size = hidden_size 
+        self.hidden_size = hidden_size
+        self.assignments = assignments
+        self.num_cells = num_cells
 
     def forward(self, input, input_embed, dec_states=None):
         input = input.cpu().detach().numpy()
@@ -133,14 +135,28 @@ class test_LSTM(nn.Module):
             hidden, cell = dec_states
             new_hidden = torch.zeros((batch_size, self.hidden_size), device=input_embed.device)
             new_cell = torch.zeros((batch_size, self.hidden_size), device=input_embed.device)
-            for i in range(1):
-                # All embeddings at the current time-step
-                # (batch_size, embed_size)
-                idx_input_embeddings = input_embed[:, seq_idx]
+
+            # All embeddings at the current time-step
+            # (batch_size, embed_size)
+            idx_input_embeddings = input_embed[:, seq_idx]
+            # (batch_size,)
+            idx_input = input[:, seq_idx]
+
+            # For each LSTMCell, compute their sub-batches and sub-hidden states
+            for cell_idx in range(self.num_cells):
+                sub_batch_indices = np.where(np.isin(idx_input, self.assignments[cell_idx]))
+                # (sub_batch_size, embed_size)
+                sub_batch_embeddings = idx_input_embeddings[sub_batch_indices]
+                # Skip this cell if nothing is assigned to it. Sub-batch is empty
+                if (sub_batch_embeddings.size(0) == 0):
+                    continue
+                sub_hidden = hidden[sub_batch_indices]
+                sub_cell = cell[sub_batch_indices]
+
                 # update hidden and cell
-                hidden, cell = self.lstm_cell[0](idx_input_embeddings, (hidden, cell))
-                new_hidden[:] = hidden
-                new_cell[:] = cell
+                sub_hidden, sub_cell = self.lstm_cell[cell_idx](sub_batch_embeddings, (sub_hidden, sub_cell))
+                new_hidden[sub_batch_indices] = sub_hidden
+                new_cell[sub_batch_indices] = sub_cell
             dec_states = (new_hidden, new_cell)
             # upload combined outputs
             combined_outputs[:, seq_idx] = new_hidden
