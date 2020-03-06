@@ -67,7 +67,7 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         """
         return self.softmax(x / temperature)
 
-    def forward(self, input, dec_states=None, temperature):
+    def forward(self, input, lstm_states=None, temperature):
         """
         We compute attention using the input embedding e_t. Initially the temperature should be high, so that the attention
         score is widely distributed. The input embedding is passed through each LSTMCell to obtain second_order_size amount
@@ -84,20 +84,20 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         The cell state is updated in the same fashion where the final c_{t+1} is the weighted average of new cells states
 
         @param input Tensor(batch_size, embed_size): Input embedding of a batch for one time sequence
-        @param dec_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
+        @param lstm_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
         @param temperature [1 - 0): Should decrease as the model continues to train. See documentation on temperature_softmax above
         @return updated_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of updated hidden and cell state
         """
         self.check_forward_input(input)
         batch_size, embed_size = input.shape
 
-        if dec_states is None:
+        if lstm_states is None:
             hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
             cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
-            dec_states = (hidden, cell)
+            lstm_states = (hidden, cell)
 
-        self.check_forward_hidden(input, dec_states[0], '_state')
-        self.check_forward_hidden(input, dec_states[1], '_cell')
+        self.check_forward_hidden(input, lstm_states[0], '_state')
+        self.check_forward_hidden(input, lstm_states[1], '_cell')
 
         # Compute attention score of cells
         # (batch_size, second_order_size)
@@ -109,7 +109,7 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         updated_hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
         updated_cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
         for cell_idx in range(self.second_order_size):
-            updated_hidden_component, updated_cell_component = self.secondOrderLSTMCells[cell_idx](input, dec_states)
+            updated_hidden_component, updated_cell_component = self.secondOrderLSTMCells[cell_idx](input, lstm_states)
             updated_hidden += alpha[cell_idx] * updated_hidden_component
             updated_cell += alpha[cell_idx] * updated_cell_component
         return (updated_hidden, updated_cell)
@@ -124,28 +124,28 @@ class AttentionSecondOrderLSTM(nn.Module):
         self.lstm_cell = AttentionSecondOrderLSTMCell(vocab, second_order_size, input_size, hidden_size, bias=bias)
         self.hidden_size = hidden_size
 
-    def forward(self, input, dec_states=None, temperature):
+    def forward(self, input, lstm_states=None, temperature):
         """
         @param input Tensor(batch_size, seq_len, embed_size)
-        @param dec_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
+        @param lstm_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
         @param temperature [1 - 0): Should decrease as the model continues to train. See documentation on temperature_softmax above
         @return combined_outputs Tensor(batch_size, seq_len, hidden_size): Output of all hidden states for each time sequence
         @return last_dec_state: Tuple of the last hidden state and cell state in the time sequence
         """
         batch_size, seq_len, embed_size = input.shape
 
-        if dec_states is None:
+        if lstm_states is None:
             hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
             cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
-            dec_states = (hidden, cell)
+            lstm_states = (hidden, cell)
 
         combined_outputs = torch.empty((batch_size, seq_len, self.hidden_size), device=input.device)
 
         for seq_idx in range(seq_len):
             # (batch_size, embed_size)
             input_embed_t = input[:, seq_idx]
-            hidden, cell = self.lstm_cell(input_embed_t, dec_states, temperature)
-            dec_states = (hidden, cell)
+            hidden, cell = self.lstm_cell(input_embed_t, lstm_states, temperature)
+            lstm_states = (hidden, cell)
             combined_outputs[:, seq_idx] = hidden
 
         return combined_outputs, (hidden, cell)
