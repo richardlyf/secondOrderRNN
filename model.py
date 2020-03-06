@@ -56,7 +56,7 @@ class LSTMLanguageModel(nn.Module):
         embedded = self.embeddings(x)
         # embedded = self.drop(embedded) if train else embedded
         
-        # (batch_size, sequence_length, hidden_size)
+        # (batch_size, sequence_length, embedding_dim)
         lstm_output, hdn = self.lstm(embedded)
 
         # (batch_size * sequence_length, hidden_size)
