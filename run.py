@@ -85,7 +85,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             x = x.to(device)
             y = y.view(-1).to(device)
             optimizer.zero_grad()
-            y_pred = model(x, train=True)
+            y_pred = model(x)
             # Criterion takes in y: (batch_size*seq_len) correct labels and 
             # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
@@ -165,7 +165,7 @@ def validate_ppl(model, criterion, val_dataset, device):
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
-        y_p = model(x, train=False)
+        y_p = model(x)
         
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())        
@@ -188,7 +188,7 @@ def validate_wcpa(model, val_dataset, batch_size, device):
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
-        y_p = model(x, train=False)
+        y_p = model(x)
 
         # calculate counts for LDPA metric
         first_chars = x[:, 0]

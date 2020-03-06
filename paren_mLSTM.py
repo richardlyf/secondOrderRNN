@@ -96,3 +96,49 @@ class paren_mLSTM(nn.Module):
                 combined_outputs[seq_idx, sub_batch_indices] = sub_hidden
 
         return combined_outputs, (dec_states[:, 0], dec_states[:, 1])
+
+
+# TEST
+
+class test_LSTM(nn.Module):
+    def __init__(self, embed_size, hidden_size, vocab, device, bias=True):
+        super(test_LSTM, self).__init__()
+        # Checking proper set up
+        if embed_size < 1 or hidden_size < 1:
+            raise ValueError("'num_cells', 'embd_dim', and 'hidden_layers' must be >= 1")
+
+        # Initialize a single LSTMCell
+        self.lstm_cell = nn.LSTMCell(embed_size, hidden_size, bias=bias)
+
+        # Preserve arguments
+        self.vocab = vocab
+        self.hidden_size = hidden_size 
+
+    def forward(self, input, input_embed, dec_states=None):
+        input = input.cpu().detach().numpy()
+        batch_size, seq_len = input.shape
+        
+        # dec_states dim=0 will hold the two Tensors representing the 
+        # sentences current hidden and cell states at each time step
+        if dec_states == None:
+            dec_states = torch.zeros((batch_size, 2, self.hidden_size), device=input_embed.device)
+
+        # outputs to be returned at the end of the function and used to make prediction
+        combined_outputs = torch.empty((seq_len, batch_size, self.hidden_size), device=input_embed.device)
+        
+        # initialize hidden and cell
+        hidden, cell = torch.split(dec_states, 1, dim=1)
+        # (sub_batch_size, hidden_size)
+        hidden = torch.squeeze(hidden, dim=1)
+        cell = torch.squeeze(cell, dim=1)
+
+        for seq_idx in range(seq_len):
+            # All embeddings at the current time-step
+            # (batch_size, embed_size)
+            idx_input_embeddings = input_embed[seq_idx]
+            # update hidden and cell
+            hidden, cell = self.lstm_cell(idx_input_embeddings, (hidden, cell))
+            # upload combined outputs
+            combined_outputs[seq_idx, :] = hidden
+
+        return combined_outputs, (hidden, cell)
