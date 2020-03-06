@@ -63,25 +63,18 @@ if __name__ == "__main__":
 ## TODO Edit this to have one cell only
 
 class test_LSTM(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab, assignments, device, bias=True, num_cells=2):
-        super(paren_mLSTM, self).__init__()
+    def __init__(self, embed_size, hidden_size, vocab, device, bias=True):
+        super(test_LSTM, self).__init__()
         # Checking proper set up
-        if num_cells < 1 or embed_size < 1 or hidden_size < 1:
+        if embed_size < 1 or hidden_size < 1:
             raise ValueError("'num_cells', 'embd_dim', and 'hidden_layers' must be >= 1")
 
-        if assignments != None:
-            max_idx = max(list(assignments.keys()))
-            if max_idx > num_cells - 1:
-                raise ValueError("invalid value in 'assignments' larger than number of LSTMCells")
-
-        # Initialize num_cells numbers of LSTMCells
-        self.lstm_list = nn.ModuleList([nn.LSTMCell(embed_size, hidden_size, bias=bias) for i in range(num_cells)])
+        # Initialize a single LSTMCell
+        self.lstm_cell = nn.LSTMCell(embed_size, hidden_size, bias=bias)
 
         # Preserve arguments
         self.vocab = vocab
-        self.assignments = assignments
         self.hidden_size = hidden_size 
-        self.num_cells = num_cells
 
     def forward(self, input, input_embed, dec_states=None):
         """
@@ -111,34 +104,20 @@ class test_LSTM(nn.Module):
 
         # outputs to be returned at the end of the function and used to make prediction
         combined_outputs = torch.empty((seq_len, batch_size, self.hidden_size), device=input_embed.device)
+        
+        # initialize hidden and cell
+        hidden, cell = torch.split(dec_states, 1, dim=1)
+        # (sub_batch_size, hidden_size)
+        hidden = torch.squeeze(hidden, dim=1)
+        cell = torch.squeeze(cell, dim=1)
 
         for seq_idx in range(seq_len):
             # All embeddings at the current time-step
-            # (batch_size,)
-            idx_input = input[:, seq_idx]
             # (batch_size, embed_size)
             idx_input_embeddings = input_embed[seq_idx]
+            # update hidden and cell
+            hidden, cell = self.lstm_cell(idx_input_embeddings, (hidden, cell))
+            # upload combined outputs
+            combined_outputs[seq_idx, :] = hidden
 
-            # For each LSTMCell, compute their sub-batches and sub-hidden states
-            for cell_idx in range(self.num_cells):
-                sub_batch_indices = np.where(np.isin(idx_input, self.assignments[cell_idx]))
-                # (sub_batch_size, embed_size)
-                sub_batch_embeddings = idx_input_embeddings[sub_batch_indices]
-                # Skip this cell if nothing is assigned to it. Sub-batch is empty
-                if (sub_batch_embeddings.size(0) == 0):
-                    continue
-                # (sub_batch_size, 2, hidden_size)
-                sub_dec_states = dec_states[sub_batch_indices]
-                # (sub_batch_size, 1, hidden_size)
-                sub_hidden, sub_cell = torch.split(sub_dec_states, 1, dim=1)
-                # (sub_batch_size, hidden_size)
-                sub_hidden = torch.squeeze(sub_hidden, dim=1)
-                sub_cell = torch.squeeze(sub_cell, dim=1)
-
-                sub_hidden, sub_cell = self.lstm_list[cell_idx](sub_batch_embeddings, (sub_hidden, sub_cell))
-                # Update corresponding hidden states
-                dec_states[sub_batch_indices] = torch.stack([sub_hidden, sub_cell], dim=1)
-                dec_states = dec_states.detach()
-                combined_outputs[seq_idx, sub_batch_indices] = sub_hidden
-
-        return combined_outputs, (dec_states[:, 0], dec_states[:, 1])
+        return combined_outputs, (hidden, cell)
