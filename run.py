@@ -56,6 +56,7 @@ def argParser():
 
 def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     batch_size = args.batch_size
+    hidden_size = args.hidden_size
     log_every = args.log_every
     lr = args.lr
     lr_factor = args.lr_decay
@@ -84,18 +85,20 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
         epoch_loss = []
         model.train()
 
-        # Initialized as none, after first call to forward()
+        # Initialized as zeros, after first call to forward()
         # will be tuple(Tensor, Tensor), each Tensor (batch_size, hidden_size)
-        hidden = None
-        for batch_iter, batch in enumerate(tqdm(train_dataset)):
+        zero_hidden = torch.zeros((batch_size, hidden_size), device=device) 
+        zero_cell = torch.zeros((batch_size, hidden_size)) 
+        init_state = (zero_hidden, zero_cell)
+        for batch_iter, batch in enumerate(tqdm(train_dataset), device=device):
             x, y = batch
             x = x.to(device)
             y = y.view(-1).to(device)
             optimizer.zero_grad()
             # When training on PTB, we want to preserve internal states between
             # batches in the epoch
-            y_pred, ret_hidden = model(x, hidden)
-            hidden = ret_hidden if is_stream else hidden
+            y_pred, ret_state = model(x, init_state)
+            init_state = ret_state if is_stream else init_state
             # Criterion takes in y: (batch_size*seq_len) correct labels and 
             # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)

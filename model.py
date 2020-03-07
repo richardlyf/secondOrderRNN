@@ -33,7 +33,8 @@ def ModelChooser(model_name, **kwargs):
         kwargs["num_cells"] = 1
         return TESTLanguageModel(**kwargs)
 
-
+# Updated to return hidden state, to be used for PTB baseline, but could be incorporated
+# into all models
 class LSTMLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
     def __init__(self, vocab, hidden_size=100, embed_size=12, dropout_rate=0.5, num_layers=1, **kwargs):
@@ -51,21 +52,23 @@ class LSTMLanguageModel(nn.Module):
         self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
         self.drop = nn.Dropout(p=dropout_rate)
         
-    def forward(self, x):
+    def forward(self, x, init_state):
         """
         @param x: (batch_size, sequence_length)
+        @param init_state: Tuple(Tensor, Tensor)
+            each Tensor (batch_size, hidden_size)
         """
         # (batch_size, sequence_length, embed_size)
         embedded = self.embeddings(x)
         # (batch_size, sequence_length, embed_size)
-        lstm_output, hdn = self.lstm(embedded)
+        lstm_output, hdn = self.lstm(embedded, hidden)
         # (batch_size * sequence_length, hidden_size)
         reshaped = lstm_output.reshape(-1, lstm_output.size(2))
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
-        return logits
+        return logits, hdn
 
 
 class AssignmentLanguageModel(nn.Module):
