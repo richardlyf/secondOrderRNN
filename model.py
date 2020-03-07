@@ -18,7 +18,7 @@ def ModelChooser(model_name, **kwargs):
             1: [1, 3, 5]
         }
         kwargs["assignments"] = assignments
-        return LSTMLanguageModel2(**kwargs)
+        return AssignmentLanguageModel(**kwargs)
     if model_name == "test_lstm":
         # Group by a paren and b paren
         assignments = {
@@ -32,45 +32,32 @@ def ModelChooser(model_name, **kwargs):
 
 class LSTMLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
-    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, num_layers=1, **kwargs):
+    def __init__(self, vocab, hidden_size=100, embed_size=12, dropout_rate=0.5, num_layers=1, **kwargs):
         super(LSTMLanguageModel, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.batch_size = batch_size
-        self.dropout_rate = dropout_rate
         
         vocab_size = len(vocab)
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
-        
+        self.embeddings = nn.Embedding(vocab_size, embed_size)
+
         self.lstm = nn.LSTM(
-            input_size = embedding_dim, 
-            hidden_size = self.hidden_dim, 
-            num_layers = num_layers,
-            dropout = dropout_rate,
+            input_size=embed_size, 
+            hidden_size=hidden_size, 
+            num_layers=num_layers, 
             batch_first=True)
 
-        self.linear = nn.Linear(
-            in_features = self.hidden_dim, 
-            out_features = vocab_size)
-
+        self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
         self.drop = nn.Dropout(p=dropout_rate)
         
-
-    def forward(self, x, train=True):
+    def forward(self, x):
         """
         Predict, return hidden state so it can be used to intialize the next hidden state 
         @param x: (batch_size, sequence_length)
         """
-        # (batch_size, sequence_length, embedding_dim)
+        # (batch_size, sequence_length, embed_size)
         embedded = self.embeddings(x)
-        # embedded = self.drop(embedded) if train else embedded
-        
-        # (batch_size, sequence_length, embedding_dim)
+        # (batch_size, sequence_length, embed_size)
         lstm_output, hdn = self.lstm(embedded)
-
         # (batch_size * sequence_length, hidden_size)
         reshaped = lstm_output.reshape(-1, lstm_output.size(2))
-        # dropped = self.drop(reshaped) if train else reshaped
-        
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
@@ -78,47 +65,34 @@ class LSTMLanguageModel(nn.Module):
         return logits
 
 
-class LSTMLanguageModel2(nn.Module):
-    """ simple LSTM neural network language model """     
-    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, dropout_rate=0.5, \
-                num_layers=1, device=None, assignments=None, num_cells=2, **kwargs):
-
-        super(LSTMLanguageModel2, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.batch_size = batch_size
-        self.dropout_rate = dropout_rate
+class AssignmentLanguageModel(nn.Module):
+    """ second order LSTM language model with explicit assignment """     
+    def __init__(self, vocab, hidden_size=100, embed_size=12, dropout_rate=0.5, \
+                device=None, assignments=None, num_cells=2, **kwargs):
+        super(AssignmentLanguageModel, self).__init__()
         
         vocab_size = len(vocab)
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.embeddings = nn.Embedding(vocab_size, embed_size)
 
         # Here we introduce the mLSTM
         self.lstm = paren_mLSTM(
-            embed_size=embedding_dim,
-            hidden_size=hidden_dim,
-            assignments=assignments,
-            num_cells=num_cells,
+            embed_size=embed_size, 
+            hidden_size=hidden_size, 
+            assignments=assignments, 
+            num_cells=num_cells, 
             device=device)
 
-        self.linear = nn.Linear(
-            in_features = self.hidden_dim, 
-            out_features = vocab_size)
-
+        self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
         self.drop = nn.Dropout(p=dropout_rate)
-        
 
-    def forward(self, x, train=True):
+    def forward(self, x):
         """
         Predict, return hidden state so it can be used to intialize the next hidden state 
         @param x: (batch_size, sequence_length)
         """
         embedded = self.embeddings(x)
-        # embedded = self.drop(embedded) if train else embedded
-        
         lstm_output, hdn = self.lstm(x, embedded)
-
         reshaped = lstm_output.view(-1, lstm_output.size(2))
-        # dropped = self.drop(reshaped) if train else reshaped
-        
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
@@ -127,43 +101,33 @@ class LSTMLanguageModel2(nn.Module):
 
 
 class TESTLanguageModel(nn.Module):
-    """ simple LSTM neural network language model """     
-    def __init__(self, vocab, hidden_dim=100, batch_size=10, embedding_dim=12, device=None, assignments=None, num_cells=2, **kwargs):
-
+    """ language model for testing parens_mLSTM """     
+    def __init__(self, vocab, hidden_size=100, embed_size=12, device=None, assignments=None, num_cells=2, **kwargs):
         super(TESTLanguageModel, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.batch_size = batch_size
         
         vocab_size = len(vocab)
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.embeddings = nn.Embedding(vocab_size, embed_size)
 
         # Here we introduce the mLSTM
         self.lstm = test_LSTM(
-            embed_size=embedding_dim,
-            hidden_size=hidden_dim,
+            embed_size=embed_size,
+            hidden_size=hidden_size,
             vocab=vocab,
             assignments=assignments,
             num_cells=num_cells,
             device=device)
 
-        self.linear = nn.Linear(
-            in_features = self.hidden_dim, 
-            out_features = vocab_size)
+        self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
         
 
-    def forward(self, x, train=True):
+    def forward(self, x):
         """
         Predict, return hidden state so it can be used to intialize the next hidden state 
         @param x: (batch_size, sequence_length)
         """
         embedded = self.embeddings(x)
-        # embedded = self.drop(embedded) if train else embedded
-        
         lstm_output, hdn = self.lstm(x, embedded)
-
         reshaped = lstm_output.view(-1, lstm_output.size(2))
-        # dropped = self.drop(reshaped) if train else reshaped
-        
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
