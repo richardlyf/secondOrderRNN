@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from paren_mLSTM import paren_mLSTM
-from paren_mLSTM import test_LSTM
+from paren_mLSTM import paren_mLSTM, test_LSTM
+from attentionSecondOrderLSTM import AttentionSecondOrderLSTM
 
 def ModelChooser(model_name, **kwargs):
     """
@@ -19,6 +19,10 @@ def ModelChooser(model_name, **kwargs):
         }
         kwargs["assignments"] = assignments
         return AssignmentLanguageModel(**kwargs)
+    if model_name == "attention":
+        return AttentionLanguageModel(**kwargs)
+
+
     if model_name == "test_lstm":
         # Group by a paren and b paren
         assignments = {
@@ -49,7 +53,6 @@ class LSTMLanguageModel(nn.Module):
         
     def forward(self, x):
         """
-        Predict, return hidden state so it can be used to intialize the next hidden state 
         @param x: (batch_size, sequence_length)
         """
         # (batch_size, sequence_length, embed_size)
@@ -87,12 +90,65 @@ class AssignmentLanguageModel(nn.Module):
 
     def forward(self, x):
         """
-        Predict, return hidden state so it can be used to intialize the next hidden state 
         @param x: (batch_size, sequence_length)
         """
         embedded = self.embeddings(x)
         lstm_output, hdn = self.lstm(x, embedded)
         reshaped = lstm_output.view(-1, lstm_output.size(2))
+        decoded = self.linear(reshaped)
+        # (batch_size * sequence_length, vocab_size)
+        logits = F.log_softmax(decoded, dim=1)
+                
+        return logits
+
+
+class AttentionLanguageModel(nn.Module):
+    """ second order attention language model """     
+    def __init__(self, vocab, second_order_size=2, hidden_size=100, embed_size=12, device=None, temp_decay=0.9, temp_decay_interval=None, **kwargs):
+        """
+        @param temp_decay: Everything temperature decays, the temperature is multiplied by this value
+        @param temp_decay_interval: The temperature will decay after forward() is called temp_decay_interval times. Should be set to
+        len(dataloader) when training. When testing, should be set to None so temperature doesn't decay.
+        """
+        super(AttentionLanguageModel, self).__init__()
+        
+        vocab_size = len(vocab)
+        self.embeddings = nn.Embedding(vocab_size, embed_size)
+
+        self.lstm = AttentionSecondOrderLSTM(
+            second_order_size=second_order_size, 
+            input_size=embed_size, 
+            hidden_size=hidden_size)
+
+        self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
+        
+        self.counter = 0
+        self.train_temperature = 1
+        self.test_temperature = 1e-5
+        self.temp_decay = temp_decay
+        self.temp_decay_interval = temp_decay_interval
+
+    def forward(self, x):
+        """
+        Predict, return hidden state so it can be used to intialize the next hidden state 
+        @param x: (batch_size, sequence_length)
+        """
+        if self.training:
+            temperature = self.train_temperature
+            self.counter += 1
+            # At the end of every epoch decrease temperature
+            assert (self.temp_decay_interval is not None), "Did not set temp_decay_interval for training"
+            if self.counter == self.temp_decay_interval:
+                self.counter = 0
+                self.train_temperature *= self.temp_decay
+                print("Temperature decayed to ", self.train_temperature)
+        # For eval temperature should be set to default low
+        else:
+            temperature = self.test_temperature
+
+        embedded = self.embeddings(x)
+        lstm_output, hdn = self.lstm(embedded, temperature)
+        reshaped = lstm_output.view(-1, lstm_output.size(2))  
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
