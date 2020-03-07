@@ -61,14 +61,19 @@ class LSTMLanguageModel(nn.Module):
         # (batch_size, sequence_length, embed_size)
         embedded = self.embeddings(x)
         # (batch_size, sequence_length, embed_size)
-        lstm_output, hdn = self.lstm(embedded, hidden)
+        lstm_output, ret_state = self.lstm(embedded, init_state)
         # (batch_size * sequence_length, hidden_size)
         reshaped = lstm_output.reshape(-1, lstm_output.size(2))
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
-        return logits, hdn
+        return logits, ret_state
+
+    def init_lstm_state(device):
+        zero_hidden = torch.zeros((batch_size, hidden_size), device=device) 
+        zero_cell = torch.zeros((batch_size, hidden_size), device=device) 
+        return (zero_hidden, zero_cell)
 
 
 class AssignmentLanguageModel(nn.Module):

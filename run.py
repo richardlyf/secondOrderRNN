@@ -87,10 +87,8 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
 
         # Initialized as zeros, after first call to forward()
         # will be tuple(Tensor, Tensor), each Tensor (batch_size, hidden_size)
-        zero_hidden = torch.zeros((batch_size, hidden_size), device=device) 
-        zero_cell = torch.zeros((batch_size, hidden_size)) 
-        init_state = (zero_hidden, zero_cell)
-        for batch_iter, batch in enumerate(tqdm(train_dataset), device=device):
+        init_state = model.init_lstm_state(device)
+        for batch_iter, batch in enumerate(tqdm(train_dataset)):
             x, y = batch
             x = x.to(device)
             y = y.view(-1).to(device)
