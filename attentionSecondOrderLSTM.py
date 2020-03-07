@@ -109,8 +109,9 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         updated_cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
         for cell_idx in range(self.second_order_size):
             updated_hidden_component, updated_cell_component = self.secondOrderLSTMCells[cell_idx](input, lstm_states)
-            updated_hidden += alpha[cell_idx] * updated_hidden_component
-            updated_cell += alpha[cell_idx] * updated_cell_component
+            # Add None in index to broadcast to shape (batch_size, 1)
+            updated_hidden += alpha[:, cell_idx, None] * updated_hidden_component
+            updated_cell += alpha[:, cell_idx, None] * updated_cell_component
         return (updated_hidden, updated_cell)
 
 

@@ -184,6 +184,7 @@ def main():
     kwargs = vars(args) # Turns args into a dictionary
     vocab = train_dataset.get_vocab()
     kwargs["vocab"] = vocab
+    kwargs["temp_decay_interval"] = len(train_dataloader)
     model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
 
