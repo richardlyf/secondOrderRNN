@@ -48,14 +48,42 @@ def pad_sents(sents, pad_token):
     return sents_padded
 
 
-def preprocess_dataset(dataset_path, tokenizer):
+def get_glove(embed_path, vocab):
+    """
+    Load GloVe embeddings from text file
+    Adapted from https://www.analyticsvidhya.com/blog/2019/01/guide-pytorch-neural-networks-case-studies/
+    
+    @param embed_path (str): path to raw embeddings file
+    @param vocab (Vocab): vocabulary for this model
+    @return embedding_matrix (np.ndarray((vocab_size, embed_size), float32)): matrix of embeddings
+    """
+    embeddings_index = {}
+    for i, line in enumerate(open(embed_path)):
+        # first element in each line is the word, rest of elements are
+        # the embeddings
+        val = line.split()
+        embeddings_index[val[0]] = np.asarray(val[1:], dtype='float32')
+        # store embedding size
+        if i == 0:
+            embed_size = len(embeddings_index[val[0]])
+
+    # initialize embedding matrix (vocab_size, embed_size)
+    embedding_matrix = np.zeros((len(vocab), embed_size))
+    # fill in embedding matrix with embeddings, if available
+    for word, i in vocab.word2id.items():
+        embedding_vector = embeddings_index.get(word)
+        if embedding_vector is not None:
+            embedding_matrix[i] = embedding_vector
+
+    return embedding_matrix
+
+def preprocess_parens_dataset(dataset_path, tokenizer):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs.
     This will be called to generate dataset for train, val, and test.
     The .json and .npy file names have the same root name as the dataset_path.
     """
-    end_token = "END"
     npy_path, json_path = get_processed_dataset_path(dataset_path)
 
     # Create the corpus by splitting the file by word
@@ -83,6 +111,46 @@ def preprocess_dataset(dataset_path, tokenizer):
     # Save to npy file for future use
     dataset = np.asarray(dataset)
     np.save(npy_path, dataset, allow_pickle=True)
+
+
+def preprocess_penn_dataset(dataset_path, tokenizer, bptt=70):
+    """
+    Preprocesses a data file to generate a vocab list and a npy file that stores 
+    (input, target) pairs.
+    This will be called to generate dataset for train, val, and test.
+    The .json and .npy file names have the same root name as the dataset_path.
+    """
+    npy_path, json_path = get_processed_dataset_path(dataset_path)
+
+    # Create the corpus by splitting the file by word
+    corpus = []
+    with open(dataset_path, 'r') as f:
+        for line in f:
+            line = tokenizer(line)
+            corpus.append(line)
+
+    # Create the vocab and its mapping to indices
+    vocab = Vocab(corpus=corpus)
+    vocab.save(json_path)
+    # Transform sentences to corresponding indices
+    flat_corpus = [item for sublist in corpus for item in sublist]
+    stream = vocab.words2indices(flat_corpus)
+    n_obs = math.ceil((len(stream)/ bptt))
+
+    # Create the dataset of (input, target) pairs
+    dataset = []
+    for i in range(0, n_obs * bptt, bptt):
+        # self.iterations += 1
+        seq_len = min(bptt, len(stream) - i - 1)
+        input_ = stream[i:i + seq_len]
+        target_ = stream[i + 1:i + 1 + seq_len]
+        sample = [input_, target_]
+        dataset.append(sample)
+
+    # Save to npy file for future use
+    dataset = np.asarray(dataset)
+    np.save(npy_path, dataset, allow_pickle=True)
+
 
 # right now, identical to ParensDataset
 # might need to alter if we decide to stream input
@@ -116,7 +184,7 @@ class ParensDataset(Dataset):
         processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_dataset(dataset_path)
+            preprocess_parens_dataset(dataset_path, tokenize_parens)
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)
         # Load the vocab
