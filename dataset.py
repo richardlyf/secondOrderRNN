@@ -84,6 +84,32 @@ def preprocess_dataset(dataset_path, tokenizer):
     dataset = np.asarray(dataset)
     np.save(npy_path, dataset, allow_pickle=True)
 
+# right now, identical to ParensDataset
+# might need to alter if we decide to stream input
+class PennTreebankDataset(Dataset):
+    def __init__(self, dataset_path):
+        processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
+        # Create the preprocessed dataset if it doesn't already exist
+        if not os.path.exists(processed_dataset_path):
+            preprocess_dataset(dataset_path, tokenize_ptb)
+        # Load the dataset from npy file
+        self.dataset = np.load(processed_dataset_path, allow_pickle=True)
+        # Load the vocab
+        self.vocab = Vocab(file_path=json_path)
+
+
+    def __len__(self):
+        return len(self.dataset)
+
+
+    def __getitem__(self, idx):
+        input_, target_ = self.dataset[idx]
+        return input_, target_
+
+
+    def get_vocab(self):
+        return self.vocab
+    
 
 class ParensDataset(Dataset):
     def __init__(self, dataset_path):
@@ -125,10 +151,14 @@ class Vocab(object):
         if file_path:
             entry = json.load(open(file_path, 'r'))
             self.word2id = entry["word2id"]
+            self.pad_id = self.word2id['<pad>']
+            self.unk_id = self.word2id['<unk>']
         else:
             self.word2id = dict()
             self.word2id['<pad>'] = 0   # Pad Token
             self.word2id['<unk>'] = 1   # Unknown Token
+            self.pad_id = self.word2id['<pad>']
+            self.unk_id = self.word2id['<unk>']
             # self.word2id['<start>'] = 1 # Start Token
             # self.word2id['<end>'] = 2    # End Token
             self.id2word = {v: k for k, v in self.word2id.items()}
@@ -137,8 +167,6 @@ class Vocab(object):
             for word in unique_words:
                 self.add(word)
 
-        self.pad_id = self.word2id['<pad>']
-        self.unk_id = self.word2id['<unk>']
         self.id2word = {v: k for k, v in self.word2id.items()}
         
 
