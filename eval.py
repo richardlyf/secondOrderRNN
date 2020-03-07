@@ -10,7 +10,7 @@ def validate(model, criterion, val_dataset, device):
     """
     x, y = next(iter(val_dataset))
     batch_size, max_sents_len = x.size()
-    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
+    total_ldpa_counts = np.zeros((max_sents_len, 2), dtype=np.int64)
     aggregate_loss = []
 
     for batch in val_dataset:
@@ -63,7 +63,7 @@ def validate_wcpa(model, val_dataset, device):
     x, y = next(iter(val_dataset))
     batch_size, max_sents_len = x.size()
     # initialize storage for long distance prediction accuracy
-    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
+    total_ldpa_counts = np.zeros((max_sents_len, 2), dtype=np.int64)
 
     for batch in val_dataset:
         x, y = batch
