@@ -47,6 +47,9 @@ def argParser():
     parser.add_argument("--lr", dest="lr", type=float, default=3e-4, help="Learning rate for training")
     parser.add_argument("--lr-decay", dest="lr_decay", type=float, default=0.5, help="Factor by which the learning rate decays")
     parser.add_argument("--patience", dest="patience", type=int, default=3, help="Learning rate decay scheduler patience, number of epochs")
+
+    # Adding argument is_stream to use with PTB dataset
+    parser.add_argument("--is-stream", dest="is_stream", type=bool, default=False, help="Whether we are streaming data input like in PTB")
     args = parser.parse_args()
     return args
 
@@ -57,6 +60,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     lr = args.lr
     lr_factor = args.lr_decay
     patience = args.patience
+    is_stream = args.is_stream
     num_epochs = args.epochs
     save_to_log = logger is not None
     logdir = logger.get_logdir() if logger is not None else None
@@ -80,12 +84,18 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
         epoch_loss = []
         model.train()
 
+        # Initialized as none, after first call to forward()
+        # will be tuple(Tensor, Tensor), each Tensor (batch_size, hidden_size)
+        hidden = None
         for batch_iter, batch in enumerate(tqdm(train_dataset)):
             x, y = batch
             x = x.to(device)
             y = y.view(-1).to(device)
             optimizer.zero_grad()
-            y_pred = model(x)
+            # When training on PTB, we want to preserve internal states between
+            # batches in the epoch
+            y_pred, ret_hidden = model(x, hidden)
+            hidden = ret_hidden if is_stream else hidden
             # Criterion takes in y: (batch_size*seq_len) correct labels and 
             # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
