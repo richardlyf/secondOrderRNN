@@ -100,8 +100,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
         with torch.no_grad():
             epoch_average_loss = np.mean(epoch_loss)
             epoch_train_ppl = np.exp(epoch_average_loss)
-            epoch_val_ppl, epoch_val_loss = validate_ppl(model, criterion, val_dataset, device)
-            epoch_val_wcpa, _ = validate_wcpa(model, val_dataset, batch_size, device)
+            epoch_val_ppl, epoch_val_loss, epoch_val_wcpa, _ = validate(model, criterion, val_dataset, device)
             scheduler.step(epoch_val_loss)
 
             # Check for early stopping
@@ -139,14 +138,13 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     batch_size = args.batch_size
 
     # load model from checkpoint
-    model =  load_checkpoint(checkpoint, model, device)
+    model = load_checkpoint(checkpoint, model, device)
     model.eval() # don't use dropout
 
     # initialize criterion 
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
     with torch.no_grad(): # for reals, don't use dropout
-        test_ppl, test_loss = validate_ppl(model, criterion, test_dataset, device)
-        test_wcpa, graph_data = validate_wcpa(model, test_dataset, batch_size, device)
+        test_ppl, test_loss, test_wcpa, graph_data = validate(model, criterion, test_dataset, device)
 
     # plot ldpa by distance
     if plot:
@@ -157,50 +155,6 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
 
     print('Test Loss: {} | Test PPL: {} | Test WCPA: {}' \
         .format(test_loss, test_ppl, test_wcpa))
-
-        
-def validate_ppl(model, criterion, val_dataset, device):
-    aggregate_loss = []
-    for batch in val_dataset:
-        x, y = batch
-        x = x.to(device)
-        y = y.view(-1).to(device)
-        y_p = model(x)
-        
-        loss = criterion(y_p, y)
-        aggregate_loss.append(loss.item())        
-    val_loss = np.mean(aggregate_loss)
-    val_ppl = np.exp(val_loss)
-    return val_ppl, val_loss
-    
-
-def validate_wcpa(model, val_dataset, batch_size, device):
-    """
-    Computes worst-case long-distance prediction accuracy (WCPA)
-    """
-    # max sentence length is the second dimension of x in val_dataset
-    x, y = next(iter(val_dataset))
-    max_sents_len = x.size(1)
-    # initialize storage for long distance prediction accuracy
-    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
-
-    for batch in val_dataset:
-        x, y = batch
-        x = x.to(device)
-        y = y.view(-1).to(device)
-        y_p = model(x)
-
-        # calculate counts for LDPA metric
-        first_chars = x[:, 0]
-        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
-            max_dist=max_sents_len)
-        total_ldpa_counts += ldpa_counts
-
-    # calculate LDPA
-    valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
-    ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
-    wcpa = np.min(ldpa) 
-    return wcpa, (valid_dist, ldpa)
 
 
 def main():

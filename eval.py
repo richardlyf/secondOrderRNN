@@ -2,6 +2,89 @@ import itertools
 import numpy as np
 import torch
 
+def validate(model, criterion, val_dataset, device):
+    """
+    Computes both perpleixty and WCPA on the validation set
+    Aggregate version of validate_ppl and validate_wcpa so we loop through
+    validation set only once and save training time.
+    """
+    x, y = next(iter(val_dataset))
+    batch_size, max_sents_len = x.size()
+    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
+    aggregate_loss = []
+
+    for batch in val_dataset:
+        x, y = batch
+        x = x.to(device)
+        y = y.view(-1).to(device)
+        y_p = model(x)
+        # ppl
+        loss = criterion(y_p, y)
+        aggregate_loss.append(loss.item())
+        # wcpa
+        first_chars = x[:, 0]
+        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
+            max_dist=max_sents_len)
+        total_ldpa_counts += ldpa_counts
+
+    # val_loss and ppl
+    val_loss = np.mean(aggregate_loss)
+    val_ppl = np.exp(val_loss)
+    # wcpa and ldpa
+    valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
+    ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
+    wcpa = np.min(ldpa)
+
+    return val_ppl, val_loss, wcpa, (valid_dist, ldpa)
+
+
+def validate_ppl(model, criterion, val_dataset, device):
+    """
+    Runs through the validation set and computes the perplexity of the model
+    """
+    aggregate_loss = []
+    for batch in val_dataset:
+        x, y = batch
+        x = x.to(device)
+        y = y.view(-1).to(device)
+        y_p = model(x)
+        
+        loss = criterion(y_p, y)
+        aggregate_loss.append(loss.item())        
+    val_loss = np.mean(aggregate_loss)
+    val_ppl = np.exp(val_loss)
+    return val_ppl, val_loss
+    
+
+def validate_wcpa(model, val_dataset, device):
+    """
+    Computes worst-case long-distance prediction accuracy (WCPA) of the model
+    """
+    # max sentence length is the second dimension of x in val_dataset
+    x, y = next(iter(val_dataset))
+    batch_size, max_sents_len = x.size()
+    # initialize storage for long distance prediction accuracy
+    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
+
+    for batch in val_dataset:
+        x, y = batch
+        x = x.to(device)
+        y = y.view(-1).to(device)
+        y_p = model(x)
+
+        # calculate counts for LDPA metric
+        first_chars = x[:, 0]
+        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
+            max_dist=max_sents_len)
+        total_ldpa_counts += ldpa_counts
+
+    # calculate LDPA
+    valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
+    ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
+    wcpa = np.min(ldpa) 
+    return wcpa, (valid_dist, ldpa)
+
+
 def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
     """
     Calculate distance between pairs of open and close parentheses.
