@@ -12,6 +12,8 @@ elif [ "$1" = "test_m4_mlstm" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --mode test --model mLSTM --train-path=./data/mbounded-dyck-k/m4/train.formal.txt --valid-path=./data/mbounded-dyck-k/m4/dev.formal.txt --test-path ./data/mbounded-dyck-k/m4/test.formal.txt --checkpoint ./log/parens_m4_mLSTM_Y2020_M3_D3_h16_m58_lr0.0001/checkpoints/best_val_ppl.pth --hidden-size 30 --embedding-size 12 --batch-size 1 --dropout 0
 elif [ "$1" = "train_m4_mlstm" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --model mLSTM --train-path=./data/mbounded-dyck-k/m4/train.formal.txt --valid-path=./data/mbounded-dyck-k/m4/dev.formal.txt --hidden-size 30 --embedding-size 12 --batch-size 1 --dropout 0 --lr 1e-4 --log parens_m4_mLSTM --log-every 10
+elif [ "$1" = "train_penn" ]; then
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model mLSTM --train-path=./data/penn/train.txt --valid-path=./data/penn/valid.txt --hidden-size 30 --embedding-size 12 --batch-size 1 --dropout 0 --lr 1e-4 --log penn --log-every 10 
 else
 	echo "Invalid Option Selected"
 fi

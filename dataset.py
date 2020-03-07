@@ -18,11 +18,17 @@ def get_processed_dataset_path(dataset_path):
     return npy_path, json_path
 
 
-def tokenize_parens(string, end_token):
+def tokenize_parens(string):
     """
     Tokenizer function for synthetic parenthesis dataset
     """
-    return string.replace(end_token, "").split()
+    return string.replace(end_token, "END").split()
+
+def tokenize_ptb(string):
+    """
+    Tokenizer function for Penn Treebank dataset
+    """
+    return string.split()
 
 
 def pad_sents(sents, pad_token):
@@ -42,7 +48,7 @@ def pad_sents(sents, pad_token):
     return sents_padded
 
 
-def preprocess_parens_dataset(dataset_path):
+def preprocess_dataset(dataset_path, tokenizer):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs.
@@ -56,7 +62,7 @@ def preprocess_parens_dataset(dataset_path):
     corpus = []
     with open(dataset_path, 'r') as f:
         for line in f:
-            line = tokenize_parens(line, end_token)
+            line = tokenizer(line)
             corpus.append(line)
 
     # Create the vocab and its mapping to indices
@@ -84,7 +90,7 @@ class ParensDataset(Dataset):
         processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_parens_dataset(dataset_path)
+            preprocess_dataset(dataset_path)
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)
         # Load the vocab
