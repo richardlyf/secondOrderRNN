@@ -18,12 +18,17 @@ def get_processed_dataset_path(dataset_path):
     return npy_path, json_path
 
 
-def tokenize_parens(string, end_token):
+def tokenize_parens(string):
     """
     Tokenizer function for synthetic parenthesis dataset
     """
-    return string.replace(end_token, "").split()
+    return string.replace("END", "").split()
 
+def tokenize_ptb(string):
+    """
+    Tokenizer function for synthetic parenthesis dataset
+    """
+    return string.split()
 
 def pad_sents(sents, pad_token):
     """ 
@@ -42,21 +47,20 @@ def pad_sents(sents, pad_token):
     return sents_padded
 
 
-def preprocess_parens_dataset(dataset_path):
+def preprocess_dataset(dataset_path, tokenizer):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs.
     This will be called to generate dataset for train, val, and test.
     The .json and .npy file names have the same root name as the dataset_path.
     """
-    end_token = "END"
     npy_path, json_path = get_processed_dataset_path(dataset_path)
 
     # Create the corpus by splitting the file by word
     corpus = []
     with open(dataset_path, 'r') as f:
         for line in f:
-            line = tokenize_parens(line, end_token)
+            line = tokenizer(line)
             corpus.append(line)
 
     # Create the vocab and its mapping to indices
@@ -64,6 +68,9 @@ def preprocess_parens_dataset(dataset_path):
     vocab.save(json_path)
     # Transform sentences to corresponding indices
     sentences = vocab.words2indices(corpus)
+    # add start and end tokens
+    sentences = [[vocab['<start>']] + s + [vocab['<end>']] for s in sentences]
+    # add padding
     padded_sentences = pad_sents(sentences, vocab['<pad>'])
 
     # Create the dataset of (input, target) pairs
@@ -84,7 +91,7 @@ class ParensDataset(Dataset):
         processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_parens_dataset(dataset_path)
+            preprocess_dataset(dataset_path, tokenize_parens)
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)
         # Load the vocab
@@ -123,8 +130,8 @@ class Vocab(object):
             self.word2id = dict()
             self.word2id['<pad>'] = 0   # Pad Token
             self.word2id['<unk>'] = 1   # Unknown Token
-            # self.word2id['<start>'] = 1 # Start Token
-            # self.word2id['<end>'] = 2    # End Token
+            self.word2id['<start>'] = 2 # Start Token
+            self.word2id['<end>'] = 3   # End Token
             self.id2word = {v: k for k, v in self.word2id.items()}
             word_freq = Counter(chain(*corpus))
             unique_words = [w for w, v in sorted(word_freq.items())]
@@ -133,6 +140,8 @@ class Vocab(object):
 
         self.pad_id = self.word2id['<pad>']
         self.unk_id = self.word2id['<unk>']
+        self.start_token = self.word2id['<start>']
+        self.end_token = self.word2id['<end>']
         self.id2word = {v: k for k, v in self.word2id.items()}
         
 
