@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-#Debug
-from dataset import *
+
 
 class customCellBase(nn.Module):
     """
@@ -42,7 +41,7 @@ class AttentionSecondOrderLSTMCell(customCellBase):
     Each LSTMCell has a corresponding attention vector V_i that is multiplied with
     the input embedding to compute the attention score.    
     """
-    def __init__(self, vocab, second_order_size, input_size, hidden_size, bias=True, **kwargs):
+    def __init__(self, second_order_size, input_size, hidden_size, bias=True, **kwargs):
         super(AttentionSecondOrderLSTMCell, self).__init__(input_size, hidden_size)
         self.hidden_size = hidden_size
         self.second_order_size = second_order_size
@@ -67,7 +66,7 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         """
         return self.softmax(x / temperature)
 
-    def forward(self, input, lstm_states=None, temperature):
+    def forward(self, input, temperature, lstm_states=None):
         """
         We compute attention using the input embedding e_t. Initially the temperature should be high, so that the attention
         score is widely distributed. The input embedding is passed through each LSTMCell to obtain second_order_size amount
@@ -84,8 +83,8 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         The cell state is updated in the same fashion where the final c_{t+1} is the weighted average of new cells states
 
         @param input Tensor(batch_size, embed_size): Input embedding of a batch for one time sequence
-        @param lstm_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
         @param temperature [1 - 0): Should decrease as the model continues to train. See documentation on temperature_softmax above
+        @param lstm_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
         @return updated_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of updated hidden and cell state
         """
         self.check_forward_input(input)
@@ -119,16 +118,16 @@ class AttentionSecondOrderLSTM(nn.Module):
     """
     Second order LSTM that uses SecondOrderLSTMCell
     """
-    def __init__(self, vocab, second_order_size, input_size, hidden_size, bias=True, **kwargs):
+    def __init__(self, second_order_size, input_size, hidden_size, bias=True, **kwargs):
         super(AttentionSecondOrderLSTM, self).__init__()
-        self.lstm_cell = AttentionSecondOrderLSTMCell(vocab, second_order_size, input_size, hidden_size, bias=bias)
+        self.lstm_cell = AttentionSecondOrderLSTMCell(second_order_size, input_size, hidden_size, bias=bias)
         self.hidden_size = hidden_size
 
-    def forward(self, input, lstm_states=None, temperature):
+    def forward(self, input, temperature, lstm_states=None):
         """
         @param input Tensor(batch_size, seq_len, embed_size)
-        @param lstm_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
         @param temperature [1 - 0): Should decrease as the model continues to train. See documentation on temperature_softmax above
+        @param lstm_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
         @return combined_outputs Tensor(batch_size, seq_len, hidden_size): Output of all hidden states for each time sequence
         @return last_dec_state: Tuple of the last hidden state and cell state in the time sequence
         """
@@ -144,17 +143,8 @@ class AttentionSecondOrderLSTM(nn.Module):
         for seq_idx in range(seq_len):
             # (batch_size, embed_size)
             input_embed_t = input[:, seq_idx]
-            hidden, cell = self.lstm_cell(input_embed_t, lstm_states, temperature)
+            hidden, cell = self.lstm_cell(input_embed_t, temperature, lstm_states)
             lstm_states = (hidden, cell)
             combined_outputs[:, seq_idx] = hidden
 
         return combined_outputs, (hidden, cell)
-
-
-
-# TESTs
-train_dataset = ParensDataset("./data/mbounded-dyck-k/m4/train.formal.txt")
-vocab = train_dataset.get_vocab()
-attlstm = AttentionSecondOrderLSTMCell(vocab, 2, input_size=5, hidden_size=6)
-for x in attlstm.parameters():
-    print(x)
