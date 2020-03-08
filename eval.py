@@ -2,7 +2,7 @@ import itertools
 import numpy as np
 import torch
 
-def validate(model, criterion, val_dataset, device):
+def validate(model, criterion, val_dataset, is_stream, device):
     """
     Computes both perpleixty and WCPA on the validation set
     Aggregate version of validate_ppl and validate_wcpa so we loop through
@@ -13,30 +13,35 @@ def validate(model, criterion, val_dataset, device):
     total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
     aggregate_loss = []
 
+    # initialize hidden state
+    hidden = model.init_lstm_state(device=device)
     for batch in val_dataset:
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
-        y_p = model(x)
+        y_p, _ = model(x, hidden)
         # ppl
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())
         # wcpa
-        first_chars = x[:, 0]
-        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
-            max_dist=max_sents_len)
-        total_ldpa_counts += ldpa_counts
+        if not is_stream:
+            first_chars = x[:, 0]
+            ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
+                max_dist=max_sents_len)
+            total_ldpa_counts += ldpa_counts
 
     # val_loss and ppl
     val_loss = np.mean(aggregate_loss)
     val_ppl = np.exp(val_loss)
     # wcpa and ldpa
-    valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
-    ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
-    wcpa = np.min(ldpa)
-
-    return val_ppl, val_loss, wcpa, (valid_dist, ldpa)
-
+    if not is_stream:
+        valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
+        ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
+        wcpa = np.min(ldpa)
+    if is_stream:
+        return val_ppl, val_loss, None, None
+    else:
+        return val_ppl, val_loss, wcpa, (valid_dist, ldpa)
 
 def validate_ppl(model, criterion, val_dataset, device):
     """

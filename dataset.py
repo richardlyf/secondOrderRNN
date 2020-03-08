@@ -1,10 +1,10 @@
 import os
 import json
 import numpy as np
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 from collections import Counter
 from itertools import chain
-
+import math
 
 def get_processed_dataset_path(dataset_path):
     """
@@ -57,23 +57,28 @@ def get_glove(embed_path, vocab):
     @param vocab (Vocab): vocabulary for this model
     @return embedding_matrix (np.ndarray((vocab_size, embed_size), float32)): matrix of embeddings
     """
-    embeddings_index = {}
-    for i, line in enumerate(open(embed_path)):
-        # first element in each line is the word, rest of elements are
-        # the embeddings
-        val = line.split()
-        embeddings_index[val[0]] = np.asarray(val[1:], dtype='float32')
-        # store embedding size
-        if i == 0:
-            embed_size = len(embeddings_index[val[0]])
+    processed_dataset_path, _ = get_processed_dataset_path(embed_path)
+    # check for existing npy file
+    if os.path.exists(processed_dataset_path):
+        embedding_matrix = np.load(processed_dataset_path, allow_pickle=True)
+    else:
+        embeddings_index = {}
+        for i, line in enumerate(open(embed_path)):
+            # first element in each line is the word, rest of elements are
+            # the embeddings
+            val = line.split(" ")
+            embeddings_index[val[0]] = np.asarray(val[1:], dtype='float32')
+            # store embedding size
+            if i == 0:
+                embed_size = len(embeddings_index[val[0]])
 
-    # initialize embedding matrix (vocab_size, embed_size)
-    embedding_matrix = np.zeros((len(vocab), embed_size))
-    # fill in embedding matrix with embeddings, if available
-    for word, i in vocab.word2id.items():
-        embedding_vector = embeddings_index.get(word)
-        if embedding_vector is not None:
-            embedding_matrix[i] = embedding_vector
+        # initialize embedding matrix (vocab_size, embed_size)
+        embedding_matrix = np.zeros((len(vocab), embed_size))
+        # fill in embedding matrix with embeddings, if available
+        for word, i in vocab.word2id.items():
+            embedding_vector = embeddings_index.get(word)
+            if embedding_vector is not None:
+                embedding_matrix[i] = embedding_vector
 
     return embedding_matrix
 
@@ -113,10 +118,10 @@ def preprocess_parens_dataset(dataset_path, tokenizer):
     np.save(npy_path, dataset, allow_pickle=True)
 
 
-def preprocess_penn_dataset(dataset_path, tokenizer, bptt=70):
+def preprocess_penn_dataset(dataset_path, tokenizer):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
-    (input, target) pairs.
+    a stream of word indices.
     This will be called to generate dataset for train, val, and test.
     The .json and .npy file names have the same root name as the dataset_path.
     """
@@ -135,45 +140,50 @@ def preprocess_penn_dataset(dataset_path, tokenizer, bptt=70):
     # Transform sentences to corresponding indices
     flat_corpus = [item for sublist in corpus for item in sublist]
     stream = vocab.words2indices(flat_corpus)
-    n_obs = math.ceil((len(stream)/ bptt))
-
-    # Create the dataset of (input, target) pairs
-    dataset = []
-    for i in range(0, n_obs * bptt, bptt):
-        # self.iterations += 1
-        seq_len = min(bptt, len(stream) - i - 1)
-        input_ = stream[i:i + seq_len]
-        target_ = stream[i + 1:i + 1 + seq_len]
-        sample = [input_, target_]
-        dataset.append(sample)
 
     # Save to npy file for future use
-    dataset = np.asarray(dataset)
+    dataset = np.asarray(stream)
     np.save(npy_path, dataset, allow_pickle=True)
 
 
-# right now, identical to ParensDataset
-# might need to alter if we decide to stream input
-class PennTreebankDataset(Dataset):
-    def __init__(self, dataset_path):
+
+class PennTreebankDataset(IterableDataset):
+    def __init__(self, dataset_path, batch_size, bptt):
         processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_dataset(dataset_path, tokenize_ptb)
+            preprocess_penn_dataset(dataset_path, tokenize_ptb)
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)
         # Load the vocab
         self.vocab = Vocab(file_path=json_path)
-
+        # save batch size and bptt
+        self.batch_size = batch_size
+        self.bptt = bptt
+        self.n_batch = math.ceil((len(self.dataset) / self.batch_size - 1) / self.bptt)
 
     def __len__(self):
-        return len(self.dataset)
+        return self.n_batch
 
+    def __iter__(self):
+        # pad the stream so that all sequences are the same length and
+        # all batches are the same size
+        n_words = len(self.dataset)
+        words_per_batch = self.bptt * self.batch_size
+        n_pad = int(math.ceil(n_words / words_per_batch) * words_per_batch - n_words)
+        padded_stream = np.append(self.dataset, 
+            np.full(n_pad, fill_value=self.vocab.pad_id))
+        
+        # reshape so that batches have contiguous data
+        data = padded_stream.reshape(self.batch_size, -1).transpose()
 
-    def __getitem__(self, idx):
-        input_, target_ = self.dataset[idx]
-        return input_, target_
-
+        # iterate over batches
+        for i in range(0, self.n_batch * self.bptt, self.bptt):
+            seq_len = min(self.bptt, len(data) - i - 1)
+            batch_input_ = np.array(data[i:i + seq_len]).transpose()
+            batch_target_ = np.array(data[i + 1:i + 1 + seq_len]).transpose()
+            sample = [batch_input_, batch_target_]
+            yield sample
 
     def get_vocab(self):
         return self.vocab

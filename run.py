@@ -50,6 +50,8 @@ def argParser():
 
     # Adding argument is_stream to use with PTB dataset
     parser.add_argument("--is-stream", dest="is_stream", type=bool, default=False, help="Whether we are streaming data input like in PTB")
+    parser.add_argument("--bptt", dest="bptt", type=int, default=70, help="Length of backpropogation through time")
+
     args = parser.parse_args()
     return args
 
@@ -92,6 +94,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             x, y = batch
             x = x.to(device)
             y = y.view(-1).to(device)
+
             optimizer.zero_grad()
             # When training on PTB, we want to preserve internal states between
             # batches in the epoch
@@ -111,7 +114,8 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
         with torch.no_grad():
             epoch_average_loss = np.mean(epoch_loss)
             epoch_train_ppl = np.exp(epoch_average_loss)
-            epoch_val_ppl, epoch_val_loss, epoch_val_wcpa, _ = validate(model, criterion, val_dataset, device)
+            epoch_val_ppl, epoch_val_loss, epoch_val_wcpa, _ = \
+                validate(model, criterion, val_dataset, is_stream, device)
             scheduler.step(epoch_val_loss)
 
             # Check for early stopping
@@ -182,13 +186,15 @@ def main():
 
     # build dataset object
     print("Creating Dataset...")
-    train_dataset = ParensDataset(args.train_path)
-    val_dataset = ParensDataset(args.valid_path)
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
-    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=4)
+    train_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
+    val_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
+    # set shuffle to False and batch_size to None for streaming data
+    train_dataloader = DataLoader(train_dataset, batch_size=None, shuffle=False, num_workers=1)
+    val_dataloader = DataLoader(val_dataset, batch_size=None, shuffle=False, num_workers=1)
+    
     if args.mode == 'test':
         test_dataset = ParensDataset(args.test_path)
-        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=4)
+        test_dataloader = DataLoader(test_dataset, batch_size=None, shuffle=False, num_workers=1)
     print("Done!")
 
     # build model
