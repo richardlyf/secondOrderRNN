@@ -47,7 +47,7 @@ def pad_sents(sents, pad_token):
     return sents_padded
 
 
-def preprocess_dataset(dataset_path, tokenizer):
+def preprocess_parens_dataset(dataset_path):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs.
@@ -60,7 +60,7 @@ def preprocess_dataset(dataset_path, tokenizer):
     corpus = []
     with open(dataset_path, 'r') as f:
         for line in f:
-            line = tokenizer(line)
+            line = tokenize_parens(line)
             corpus.append(line)
 
     # Create the vocab and its mapping to indices
