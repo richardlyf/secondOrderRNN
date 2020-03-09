@@ -17,12 +17,30 @@ def get_processed_dataset_path(dataset_path):
     json_path = dataset_path[:-4] + ".json"
     return npy_path, json_path
 
+def get_stream_batched_dataset_path(dataset_path, batch_size, bptt):
+    """
+    Return two dataset paths; the first is .npy and the second is .json
+        npy file stores all the preprocessed data
+        json file stores all the vocab and its indices
+    The naming of the .npy file reflects the batch_size and bptt used to 
+    construct the data.
+    """
+    # get standard npy and json paths
+    npy_path, json_path = get_processed_dataset_path(dataset_path)
+
+    # update npy path to include batch_size and bptt
+    root, file = os.path.split(npy_path)
+    filename, ext = os.path.splitext(file)
+    npy_path = os.path.join(root, "{}_batch{}_bptt{}{}".format(filename, batch_size, bptt, ext))
+    return npy_path, json_path
+
 
 def tokenize_parens(string):
     """
     Tokenizer function for synthetic parenthesis dataset
     """
     return string.replace(end_token, "END").split()
+
 
 def tokenize_ptb(string):
     """
@@ -145,14 +163,17 @@ def preprocess_penn_dataset(dataset_path, tokenizer):
     dataset = np.asarray(stream)
     np.save(npy_path, dataset, allow_pickle=True)
 
-def preprocess_penn_dataset2(dataset_path, tokenizer, batch_size, bptt, vocab):
+
+def preprocess_penn_dataset2(dataset_path, tokenizer, batch_size, bptt):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
-    a stream of word indices.
+    (input, target) pairs. Note that the dataset created is specific to 
+    batch_size and bptt, so needs to be re-run every time batch_size is changed.
+
     This will be called to generate dataset for train, val, and test.
     The .json and .npy file names have the same root name as the dataset_path.
     """
-    npy_path, json_path = get_processed_dataset_path(dataset_path)
+    npy_path, json_path = get_stream_batched_dataset_path(dataset_path, batch_size, bptt)
 
     # Create the corpus by splitting the file by word
     corpus = []
@@ -167,54 +188,59 @@ def preprocess_penn_dataset2(dataset_path, tokenizer, batch_size, bptt, vocab):
     # Transform sentences to corresponding indices
     flat_corpus = [item for sublist in corpus for item in sublist]
     stream = vocab.words2indices(flat_corpus)
-
     np_stream = np.array(stream)
 
-    # Pad np_stream to get consistent size samples
+    # Pad stream to get consistent size samples
     n_words = len(np_stream)
+    n_batch = math.ceil((len(np_stream) / batch_size - 1) / bptt)
     words_per_batch = bptt * batch_size
     n_pad = int(math.ceil(n_words / words_per_batch) * words_per_batch - n_words)
     padded_stream = np.append(np_stream, 
             np.full(n_pad, fill_value=vocab.pad_id))
+    
+    # reshape so that batches have contiguous data
+    data = padded_stream.reshape(batch_size, -1).transpose()
 
-
+    # split into contiguous batches and save samples to dataset
     dataset = []
-    for i in range(0, self.n_batch * self.bptt, self.bptt):
-            seq_len = min(self.bptt, len(data) - i - 1)
-            batch_input_ = np.array(data[i:i + seq_len]).transpose()
-            batch_target_ = np.array(data[i + 1:i + 1 + seq_len]).transpose()
-            for j in range(batch_size):
-                sample = [batch_input_[j], batch_target_[j]] #might need to change dims
-                dataset.append(sample)
+    for i in range(0, n_batch * bptt, bptt):
+        seq_len = min(bptt, len(data) - i - 1)
+        batch_input_ = np.array(data[i:i + seq_len]).transpose()
+        batch_target_ = np.array(data[i + 1:i + 1 + seq_len]).transpose()
+        for j in range(batch_size):
+            sample = [batch_input_[j], batch_target_[j]] # might need to change dims
+            dataset.append(sample)
 
     dataset = np.asarray(dataset)
     np.save(npy_path, dataset, allow_pickle=True)
 
 
-class PennTreebankDataset2(IterableDataset):
+class PennTreebankDataset2(Dataset):
     def __init__(self, dataset_path, batch_size, bptt):
-
-        processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
         self.batch_size = batch_size
         self.bptt = bptt
-        # Load the vocab
-        self.vocab = Vocab(file_path=json_path)
+        
+        processed_dataset_path, json_path = get_stream_batched_dataset_path(
+            dataset_path, batch_size, bptt)
         
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_penn_dataset2(dataset_path, tokenize_ptb, batch_size, bptt, vocab)
+            preprocess_penn_dataset2(dataset_path, tokenize_ptb, 
+                self.batch_size, self.bptt)
+
+        # Load the vocab
+        self.vocab = Vocab(file_path=json_path)
+
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)
-        # save batch size and bptt
-        self.n_batch = math.ceil((len(self.dataset) / self.batch_size - 1) / self.bptt)
-    
+
+
     def __getitem__(self, idx):
         input_, target_ = self.dataset[idx]
         return input_, target_
 
     def __len__(self):
-        return self.n_batch
-
+        return len(self.dataset)
 
     def get_vocab(self):
         return self.vocab

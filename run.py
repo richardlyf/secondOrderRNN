@@ -186,12 +186,19 @@ def main():
 
     # build dataset object
     print("Creating Dataset...")
-    train_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
-    val_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
-    # set shuffle to False and batch_size to None for streaming data
-    train_dataloader = DataLoader(train_dataset, batch_size=None, shuffle=False, num_workers=1)
-    val_dataloader = DataLoader(val_dataset, batch_size=None, shuffle=False, num_workers=1)
-    
+    ## VERSION 1: Data is processed during training, using IterableDataset
+    ## (set shuffle to False and batch_size to None for streaming data)
+    # train_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
+    # val_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
+    # train_dataloader = DataLoader(train_dataset, batch_size=None, shuffle=False, num_workers=1)
+    # val_dataloader = DataLoader(val_dataset, batch_size=None, shuffle=False, num_workers=1)
+
+    ## VERSION 2: Preprocess data into batches for streaming
+    train_dataset = PennTreebankDataset2(args.train_path, args.batch_size, args.bptt)
+    val_dataset = PennTreebankDataset2(args.train_path, args.batch_size, args.bptt)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+
     if args.mode == 'test':
         test_dataset = ParensDataset(args.test_path)
         test_dataloader = DataLoader(test_dataset, batch_size=None, shuffle=False, num_workers=1)
