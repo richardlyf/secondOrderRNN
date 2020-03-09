@@ -4,13 +4,13 @@ import torch
 
 def validate(model, criterion, val_dataset, device):
     """
-    Computes both perpleixty and WCPA on the validation set
+    Computes both perplexity and WCPA on the validation set
     Aggregate version of validate_ppl and validate_wcpa so we loop through
     validation set only once and save training time.
     """
     x, y = next(iter(val_dataset))
     batch_size, max_sents_len = x.size()
-    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
+    total_ldpa_counts = np.zeros((max_sents_len, 2), dtype=np.int64)
     aggregate_loss = []
 
     for batch in val_dataset:
@@ -22,8 +22,7 @@ def validate(model, criterion, val_dataset, device):
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())
         # wcpa
-        first_chars = x[:, 0]
-        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
+        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, batch_size=batch_size,
             max_dist=max_sents_len)
         total_ldpa_counts += ldpa_counts
 
@@ -64,7 +63,7 @@ def validate_wcpa(model, val_dataset, device):
     x, y = next(iter(val_dataset))
     batch_size, max_sents_len = x.size()
     # initialize storage for long distance prediction accuracy
-    total_ldpa_counts = np.zeros((max_sents_len + 1, 2), dtype=np.int64)
+    total_ldpa_counts = np.zeros((max_sents_len, 2), dtype=np.int64)
 
     for batch in val_dataset:
         x, y = batch
@@ -73,8 +72,7 @@ def validate_wcpa(model, val_dataset, device):
         y_p = model(x)
 
         # calculate counts for LDPA metric
-        first_chars = x[:, 0]
-        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, init=first_chars, batch_size=batch_size,
+        ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, batch_size=batch_size,
             max_dist=max_sents_len)
         total_ldpa_counts += ldpa_counts
 
@@ -85,15 +83,11 @@ def validate_wcpa(model, val_dataset, device):
     return wcpa, (valid_dist, ldpa)
 
 
-def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
+def get_distances(y, close_idx=[6, 7], open_idx=[4, 5], pad_idx=0):
     """
     Calculate distance between pairs of open and close parentheses.
-    The entire sentence is passed in using y and init because the target sentence
-    doesn't have access to the first character and the first character is stripped
-    from the input x.
 
     @param y (list[int]): sentence of parentheses without the first character
-    @param init (int): the first character of the sentence
     @param close_idx (list[int]): indices of unique close parentheses in vocabulary
     @param open_idx (list[int]): indices of unique open parentheses in vocabulary
     @return dists (list[int]): None for open parenthesis, distance to corresponding
@@ -104,9 +98,6 @@ def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
     co = dict(zip(close_idx, open_idx))
     # initialize k stacks, one for each type of parenthesis
     stacks = {open_idx[i]: [] for i in range(len(open_idx))}
-    # the first character of the sentence is figuratively given index -1 since y
-    # starts with the second character at index 0
-    stacks[init] += [-1]
     # initalize empty matrix of distances
     dists = [None] * len(y)
     # for each close parenthesis, calculate accuracy of prediction
@@ -125,7 +116,7 @@ def get_distances(y, init, close_idx=[4, 5], open_idx=[2, 3], pad_idx=0):
     return dists
 
 
-def get_LDPA_counts(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], open_idx=[2, 3], thresh=0.8, pad_idx=0):
+def get_LDPA_counts(y, y_pred, batch_size, max_dist, close_idx=[6, 7], open_idx=[4, 5], thresh=0.8, pad_idx=0):
     """
     The closing distance is the distance between a close paren and its corresponding open paren
     For each closing distance, count how many parens in the batch close at that distance.
@@ -136,29 +127,26 @@ def get_LDPA_counts(y, y_pred, init, batch_size, max_dist, close_idx=[4, 5], ope
     @param y Tensor(batch_size * seq_len, ): A flattened batch of target sentence
     @param y_pred Tensor(batch_size * seq_len, vocab_size): Prediction distribution for each word in 
     target sentence
-    @param init Tensor(batch_size, ): A batch of first characters of each sentence. The target sentence 
-    doesn't contain the first character of that sentence
     @param batch_size
     @param max_dist (int): The maximum sentence length, which is also the maximum distance between open 
     and closed parentheses
 
-    @return ldpa_counts (max_dist + 1, 2): Array holding [num close parens, num prediction above thresh]
+    @return ldpa_counts (max_dist, 2): Array holding [num close parens, num prediction above thresh]
     for each closing distance
     """
 
     # split y into batches
     y = y.cpu().detach().numpy()
     targets = np.array_split(y, batch_size)
-    init = init.tolist()
 
     # create an array that holds [num close parens, num predictions above prob threshold] at each distance
     # max_dist is inclusive
-    ldpa_counts = np.zeros((max_dist + 1, 2), dtype=np.int64)
+    ldpa_counts = np.zeros((max_dist, 2), dtype=np.int64)
     all_closing_dists = []
 
     for i, target in enumerate(targets):
         # calculate distances
-        closing_dists = get_distances(target, init[i], close_idx, open_idx, pad_idx)
+        closing_dists = get_distances(target, close_idx, open_idx, pad_idx)
         all_closing_dists.append(closing_dists)
 
     # (batch_size * sequence_length)
