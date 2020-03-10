@@ -159,7 +159,8 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     # initialize criterion 
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
     with torch.no_grad(): # for reals, don't use dropout
-        test_ppl, test_loss, test_wcpa, graph_data = validate(model, criterion, test_dataset, device)
+        test_ppl, test_loss, test_wcpa, graph_data = validate(
+            model, criterion, test_dataset, args.is_stream, device)
 
     # plot ldpa by distance
     if plot:
@@ -192,8 +193,8 @@ def main():
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     if args.mode == 'test':
-        test_dataset = ParensDataset(args.test_path)
-        test_dataloader = DataLoader(test_dataset, batch_size=None, shuffle=False, num_workers=1)
+        test_dataset = PennTreebankDataset(args.test_path, args.batch_size, args.bptt)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     print("Done!")
 
     # build model

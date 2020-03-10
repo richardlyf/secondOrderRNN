@@ -39,7 +39,7 @@ def tokenize_parens(string):
     """
     Tokenizer function for synthetic parenthesis dataset
     """
-    return string.replace(end_token, "END").split()
+    return string.replace("END", "").split()
 
 
 def tokenize_ptb(string):
@@ -198,7 +198,7 @@ class PennTreebankDataset(Dataset):
         
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_penn_dataset2(dataset_path, tokenize_ptb, 
+            preprocess_penn_dataset(dataset_path, tokenize_ptb, 
                 self.batch_size, self.bptt)
 
         # Load the vocab
