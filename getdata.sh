@@ -49,6 +49,7 @@ mkdir -p vectors
 cd vectors
 wget --quiet --continue http://nlp.stanford.edu/data/wordvecs/glove.840B.300d.zip
 unzip glove.840B.300d.zip
+cd ..
 
 # echo "- Downloading Penn Treebank (Character)"
 # mkdir -p pennchar
