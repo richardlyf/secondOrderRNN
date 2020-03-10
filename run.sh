@@ -16,6 +16,8 @@ elif [ "$1" = "train_penn" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --model ptb_lstm --train-path=./data/penn/train.txt --valid-path=./data/penn/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --dropout 0 --lr 1e-4 --is-stream True --bptt 70 --log-every 10 --log penn_lstm_batch64_70bptt --epochs 1000
 elif [ "$1" = "test_penn" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --mode test --model ptb_lstm --train-path=./data/penn/train.txt --valid-path=./data/penn/valid.txt --test-path=./data/penn/test.txt --checkpoint ./log/penn_lstm_batch64_70bptt_Y2020_M3_D10_h4_m31_lr0.0001/checkpoints/best_val_ppl.pth --hidden-size 600 --embedding-size 300 --batch-size 64 --dropout 0 --lr 1e-4 --is-stream True --bptt 70
+elif [ "$1" = "debug_penn" ]; then
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model ptb_lstm --train-path=./data/penn/tiny_train.txt --valid-path=./data/penn/valid.txt --test-path=./data/penn/test.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --dropout 0 --lr 1e-4 --is-stream True --bptt 70
 else
 	echo "Invalid Option Selected"
 fi
