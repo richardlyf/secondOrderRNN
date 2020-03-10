@@ -75,8 +75,8 @@ def get_glove(embed_path, vocab):
     @param vocab (Vocab): vocabulary for this model
     @return embedding_matrix (np.ndarray((vocab_size, embed_size), float32)): matrix of embeddings
     """
-    processed_dataset_path, _ = get_processed_dataset_path(embed_path)
     # check for existing npy file
+    processed_dataset_path, _ = get_processed_dataset_path(embed_path)
     if os.path.exists(processed_dataset_path):
         embedding_matrix = np.load(processed_dataset_path, allow_pickle=True)
     else:
@@ -98,6 +98,7 @@ def get_glove(embed_path, vocab):
             if embedding_vector is not None:
                 embedding_matrix[i] = embedding_vector
 
+    np.save(processed_dataset_path, embedding_matrix, allow_pickle=True)
     return embedding_matrix
 
 def preprocess_parens_dataset(dataset_path, tokenizer):

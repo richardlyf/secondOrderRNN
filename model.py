@@ -35,7 +35,7 @@ def ModelChooser(model_name, **kwargs):
         kwargs["num_cells"] = 1
         return TESTLanguageModel(**kwargs)
     if model_name == "ptb_lstm":
-        kwargs["embed_path"] = "data/.vector_cache/miniglove.txt"
+        kwargs["embed_path"] = "data/vectors/miniglove.txt"
         return LSTMNaturalLanguageModel(**kwargs)
 
 # Updated to return hidden state, to be used for PTB baseline, but could be incorporated

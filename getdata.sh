@@ -8,14 +8,14 @@ echo "---"
 mkdir -p data
 cd data
 
-echo "- Downloading WikiText-2 (WT2)"
-wget --quiet --continue https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip
-unzip -q wikitext-2-v1.zip
-cd wikitext-2
-mv wiki.train.tokens train.txt
-mv wiki.valid.tokens valid.txt
-mv wiki.test.tokens test.txt
-cd ..
+# echo "- Downloading WikiText-2 (WT2)"
+# wget --quiet --continue https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip
+# unzip -q wikitext-2-v1.zip
+# cd wikitext-2
+# mv wiki.train.tokens train.txt
+# mv wiki.valid.tokens valid.txt
+# mv wiki.test.tokens test.txt
+# cd ..
 
 # echo "- Downloading WikiText-103 (WT2)"
 # wget --continue https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip
@@ -43,6 +43,12 @@ mv ../simple-examples/data/ptb.train.txt train.txt
 mv ../simple-examples/data/ptb.test.txt test.txt
 mv ../simple-examples/data/ptb.valid.txt valid.txt
 cd ..
+
+echo "- Downloading GloVe Vectors"
+mkdir -p vectors
+cd vectors
+wget --quiet --continue http://nlp.stanford.edu/data/wordvecs/glove.840B.300d.zip
+unzip glove.840B.300d.zip
 
 # echo "- Downloading Penn Treebank (Character)"
 # mkdir -p pennchar
