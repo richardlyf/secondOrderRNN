@@ -35,7 +35,7 @@ def ModelChooser(model_name, **kwargs):
         kwargs["num_cells"] = 1
         return TESTLanguageModel(**kwargs)
     if model_name == "ptb_lstm":
-        kwargs["embed_path"] = "data/vectors/miniglove.txt"
+        kwargs["embed_path"] = "data/vectors/.txt" #TODO: finish this file path
         return LSTMNaturalLanguageModel(**kwargs)
 
 # Updated to return hidden state, to be used for PTB baseline, but could be incorporated
@@ -157,18 +157,33 @@ class AssignmentLanguageModel(nn.Module):
         self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
         self.drop = nn.Dropout(p=dropout_rate)
 
-    def forward(self, x):
+    def init_lstm_state(self, device):
+        zero_hidden = torch.zeros((
+            self.num_layers, 
+            self.batch_size, 
+            self.hidden_size), device=device) 
+        zero_cell = torch.zeros((
+            self.num_layers, 
+            self.batch_size, 
+            self.hidden_size), device=device) 
+        return (zero_hidden, zero_cell)
+
+    def detach_hidden(self, hidden):
+        """ util function to keep down number of graphs """
+        return tuple([h.detach() for h in hidden])
+
+    def forward(self, x, init_state):
         """
         @param x: (batch_size, sequence_length)
         """
         embedded = self.embeddings(x)
-        lstm_output, hdn = self.lstm(x, embedded)
+        lstm_output, ret_state = self.lstm(x, embedded, init_state)
         reshaped = lstm_output.view(-1, lstm_output.size(2))
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
-        return logits
+        return logits, self.detach_hidden(ret_state)
 
 
 class AttentionLanguageModel(nn.Module):
