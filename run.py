@@ -211,7 +211,7 @@ def main():
         train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
     if args.mode == 'test':
         print("Starting testing...")
-        test(args.checkpoint, model, vocab, test_dataloader, args, device, plot=True)
+        test(args.checkpoint, model, vocab, test_dataloader, args, device, plot=False)
 
 if __name__ == "__main__":
     main()

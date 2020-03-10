@@ -34,9 +34,11 @@ def ModelChooser(model_name, **kwargs):
         kwargs["assignments"] = assignments
         kwargs["num_cells"] = 1
         return TESTLanguageModel(**kwargs)
+        
     if model_name == "ptb_lstm":
         # fill in path to pretrained vector embeddings here
-        kwargs["embed_path"] = "data/vectors/glove.840B.300d.txt"
+        # if embed_path is left empty, model will train without embeddings
+        # kwargs["embed_path"] = "data/vectors/glove.840B.300d.txt"
         return LSTMNaturalLanguageModel(**kwargs)
 
 # Updated to return hidden state, to be used for PTB baseline, but could be incorporated
@@ -87,13 +89,15 @@ class LSTMNaturalLanguageModel(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         vocab_size = len(vocab)
+        
+        self.embeddings = nn.Embedding(vocab_size, embed_size)
 
         # load glove embeddings and initialize 
-        self.embeddings = nn.Embedding(vocab_size, embed_size)
-        glove_embeddings = get_glove(embed_path, vocab)
-        glove_tensor = torch.tensor(glove_embeddings, dtype=torch.float32, device=device)
-        self.embeddings.weight = nn.Parameter(glove_tensor)
-        self.embeddings.weight.requires_grad = False
+        if embed_path is not None:
+            glove_embeddings = get_glove(embed_path, vocab)
+            glove_tensor = torch.tensor(glove_embeddings, dtype=torch.float32, device=device)
+            self.embeddings.weight = nn.Parameter(glove_tensor)
+            self.embeddings.weight.requires_grad = False
 
         self.lstm = nn.LSTM(
             input_size=embed_size, 
