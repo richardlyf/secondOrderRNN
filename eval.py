@@ -39,7 +39,7 @@ def validate(model, criterion, val_dataset, is_stream, device):
         ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
         wcpa = np.min(ldpa)
     if is_stream:
-        return val_ppl, val_loss, None, None
+        return val_ppl, val_loss, -1, None
     else:
         return val_ppl, val_loss, wcpa, (valid_dist, ldpa)
 
