@@ -91,7 +91,7 @@ class ParensDataset(Dataset):
         processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_dataset(dataset_path, tokenize_parens)
+            preprocess_parens_dataset(dataset_path)
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)
         # Load the vocab
