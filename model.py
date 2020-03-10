@@ -35,7 +35,8 @@ def ModelChooser(model_name, **kwargs):
         kwargs["num_cells"] = 1
         return TESTLanguageModel(**kwargs)
     if model_name == "ptb_lstm":
-        kwargs["embed_path"] = "data/vectors/.txt" #TODO: finish this file path
+        # fill in path to pretrained vector embeddings here
+        kwargs["embed_path"] = "data/vectors/glove.840B.300d.txt"
         return LSTMNaturalLanguageModel(**kwargs)
 
 # Updated to return hidden state, to be used for PTB baseline, but could be incorporated
