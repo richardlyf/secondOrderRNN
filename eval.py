@@ -14,12 +14,14 @@ def validate(model, criterion, val_dataset, is_stream, device):
     aggregate_loss = []
 
     # initialize hidden state
-    hidden = model.init_lstm_state(device=device)
+    init_state = model.init_lstm_state(device=device)
     for batch in val_dataset:
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
-        y_p, _ = model(x, hidden)
+        
+        y_p, ret_state = model(x, init_state)
+        init_state = ret_state if is_stream else init_state
         # ppl
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())

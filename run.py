@@ -194,7 +194,7 @@ def main():
 
     if args.mode == 'test':
         test_dataset = PennTreebankDataset(args.test_path, args.batch_size, args.bptt)
-        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=1)
     print("Done!")
 
     # build model
