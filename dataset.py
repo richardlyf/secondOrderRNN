@@ -165,11 +165,10 @@ def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt):
 
     # Pad stream to get consistent size samples
     n_words = len(np_stream)
-    n_batch = math.ceil((len(np_stream) / batch_size - 1) / bptt)
+    n_batch = math.ceil((n_words / batch_size - 1) / bptt)
     words_per_batch = bptt * batch_size
-    n_pad = int(math.ceil(n_words / words_per_batch) * words_per_batch - n_words)
-    padded_stream = np.append(np_stream, 
-            np.full(n_pad, fill_value=vocab.pad_id))
+    n_pad = n_batch * words_per_batch - n_words
+    padded_stream = np.append(np_stream, np.full(n_pad, fill_value=vocab.pad_id))
     
     # reshape so that batches have contiguous data
     data = padded_stream.reshape(batch_size, -1).transpose()
@@ -178,8 +177,8 @@ def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt):
     dataset = []
     for i in range(0, n_batch * bptt, bptt):
         seq_len = min(bptt, len(data) - i - 1)
-        batch_input_ = np.array(data[i:i + seq_len]).transpose()
-        batch_target_ = np.array(data[i + 1:i + 1 + seq_len]).transpose()
+        batch_input_ = np.array(data[i: i + seq_len]).transpose()
+        batch_target_ = np.array(data[i + 1: i + 1 + seq_len]).transpose()
         for j in range(batch_size):
             sample = [batch_input_[j], batch_target_[j]] # might need to change dims
             dataset.append(sample)
