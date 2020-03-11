@@ -188,7 +188,7 @@ def main():
     # build dataset object
     print("Creating Dataset...")
     train_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
-    val_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
+    val_dataset = PennTreebankDataset(args.valid_path, args.batch_size, args.bptt)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
