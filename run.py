@@ -36,7 +36,6 @@ def argParser():
     parser.add_argument("--embedding-size", dest='embed_size', type=int, default=12, help="Size of the word embedding")
     parser.add_argument("--hidden-size", dest="hidden_size", type=int, default=256, help="Dimension of hidden layer")
     parser.add_argument("--num-layers", dest='num_layers', type=int, default=1, help="Number of LSTM layers")
-    parser.add_argument("--is-parens", dest="is_parens", type=int, default=1, help="Train on the parenthesis dataset when 1, 0 on TreeBank dataset")
     parser.add_argument("--epochs", dest="epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--train-path", dest="train_path", help="Training data file")
     parser.add_argument("--valid-path", dest="valid_path", help="Validation data file")
@@ -48,8 +47,9 @@ def argParser():
     parser.add_argument("--lr-decay", dest="lr_decay", type=float, default=0.5, help="Factor by which the learning rate decays")
     parser.add_argument("--patience", dest="patience", type=int, default=3, help="Learning rate decay scheduler patience, number of epochs")
 
-    # Adding argument is_stream to use with PTB dataset
-    parser.add_argument("--is-stream", dest="is_stream", type=bool, default=False, help="Whether we are streaming data input like in PTB")
+    # Adding argument is_penn to use with PTB dataset
+    parser.add_argument("--is-penn", dest="is_penn", type=int, default=1, help="1: Train on PennTreebank 0: Train on parens data. \
+        This argument is also passed to models to treat batches as streams.")
     parser.add_argument("--bptt", dest="bptt", type=int, default=70, help="Length of backpropogation through time")
 
     args = parser.parse_args()
@@ -63,7 +63,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     lr = args.lr
     lr_factor = args.lr_decay
     patience = args.patience
-    is_stream = args.is_stream
+    is_penn = args.is_penn
     num_epochs = args.epochs
     save_to_log = logger is not None
     logdir = logger.get_logdir() if logger is not None else None
@@ -99,7 +99,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             # When training on PTB, we want to preserve internal states between
             # batches in the epoch
             y_pred, ret_state = model(x, init_state)
-            init_state = ret_state if is_stream else init_state
+            init_state = ret_state if is_penn else init_state
             # Criterion takes in y: (batch_size*seq_len) correct labels and 
             # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
@@ -115,7 +115,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             epoch_average_loss = np.mean(epoch_loss)
             epoch_train_ppl = np.exp(epoch_average_loss)
             epoch_val_ppl, epoch_val_loss, epoch_val_wcpa, _ = \
-                validate(model, criterion, val_dataset, is_stream, device)
+                validate(model, criterion, val_dataset, is_penn, device)
             scheduler.step(epoch_val_loss)
 
             # Check for early stopping
@@ -160,7 +160,7 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
     with torch.no_grad(): # for reals, don't use dropout
         test_ppl, test_loss, test_wcpa, graph_data = validate(
-            model, criterion, test_dataset, args.is_stream, device)
+            model, criterion, test_dataset, args.is_penn, device)
 
     # plot ldpa by distance
     if plot:
@@ -176,7 +176,7 @@ def main():
     # setup
     print("Setting up...")
     args = argParser()
-    args.is_parens = True if args.is_parens == 1 else False
+    args.is_penn = True if args.is_penn == 1 else False
     device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else "cpu")
     unique_logdir = create_unique_logdir(args.log, args.lr)
     logger = Logger(unique_logdir) if args.log != '' else None
@@ -186,14 +186,14 @@ def main():
 
     # build dataset object
     print("Creating Dataset...")
-    train_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
+    train_dataset = CustomDataset(args.train_path, args.batch_size, args.bptt, is_penn=args.is_penn)
     train_json_path = train_dataset.get_json_path()
-    val_dataset = PennTreebankDataset(args.valid_path, args.batch_size, args.bptt, json_path_override=train_json_path)
+    val_dataset = CustomDataset(args.valid_path, args.batch_size, args.bptt, is_penn=args.is_penn, json_path_override=train_json_path)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     if args.mode == 'test':
-        test_dataset = PennTreebankDataset(args.test_path, args.batch_size, args.bptt, json_path_override=train_json_path)
+        test_dataset = CustomDataset(args.test_path, args.batch_size, args.bptt, is_penn=args.is_penn, json_path_override=train_json_path)
         test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     print("Done!")
 

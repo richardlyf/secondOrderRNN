@@ -2,7 +2,7 @@ import itertools
 import numpy as np
 import torch
 
-def validate(model, criterion, val_dataset, is_stream, device):
+def validate(model, criterion, val_dataset, is_penn, device):
     """
     Computes both perplexity and WCPA on the validation set
     Aggregate version of validate_ppl and validate_wcpa so we loop through
@@ -21,12 +21,12 @@ def validate(model, criterion, val_dataset, is_stream, device):
         y = y.view(-1).to(device)
         
         y_p, ret_state = model(x, init_state)
-        init_state = ret_state if is_stream else init_state
+        init_state = ret_state if is_penn else init_state
         # ppl
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())
         # wcpa
-        if not is_stream:
+        if not is_penn:
             ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, batch_size=batch_size,
                 max_dist=max_sents_len)
             total_ldpa_counts += ldpa_counts
@@ -35,11 +35,11 @@ def validate(model, criterion, val_dataset, is_stream, device):
     val_loss = np.mean(aggregate_loss)
     val_ppl = np.exp(val_loss)
     # wcpa and ldpa
-    if not is_stream:
+    if not is_penn:
         valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
         ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
         wcpa = np.min(ldpa)
-    if is_stream:
+    if is_penn:
         return val_ppl, val_loss, -1, None
     else:
         return val_ppl, val_loss, wcpa, (valid_dist, ldpa)

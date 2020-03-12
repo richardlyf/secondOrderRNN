@@ -1,7 +1,7 @@
 import os
 import json
 import numpy as np
-from torch.utils.data import Dataset, IterableDataset
+from torch.utils.data import Dataset
 from collections import Counter
 from itertools import chain
 import math
@@ -16,6 +16,7 @@ def get_processed_dataset_path(dataset_path):
     npy_path = dataset_path[:-4] + ".npy"
     json_path = dataset_path[:-4] + ".json"
     return npy_path, json_path
+
 
 def get_stream_batched_dataset_path(dataset_path, batch_size, bptt):
     """
@@ -94,12 +95,14 @@ def get_glove(embed_path, vocab):
     np.save(processed_dataset_path, embedding_matrix, allow_pickle=True)
     return embedding_matrix
 
-def preprocess_parens_dataset(dataset_path):
+def preprocess_parens_dataset(dataset_path, json_path_override=None):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs.
     This will be called to generate dataset for train, val, and test.
     The .json and .npy file names have the same root name as the dataset_path.
+    @json_path_override: When creating the validation set, the json file of the train dataset should 
+    be passed in so all words share the same indicies.
     """
     npy_path, json_path = get_processed_dataset_path(dataset_path)
 
@@ -111,8 +114,11 @@ def preprocess_parens_dataset(dataset_path):
             corpus.append(line)
 
     # Create the vocab and its mapping to indices
-    vocab = Vocab(corpus=corpus)
-    vocab.save(json_path)
+    if json_path_override:
+        vocab = Vocab(file_path=json_path_override)
+    else:
+        vocab = Vocab(corpus=corpus)
+        vocab.save(json_path)
     # Transform sentences to corresponding indices
     sentences = vocab.words2indices(corpus)
     # add start and end tokens
@@ -189,27 +195,32 @@ def preprocess_penn_dataset(dataset_path, batch_size, bptt, json_path_override=N
     np.save(npy_path, dataset, allow_pickle=True)
 
 
-class PennTreebankDataset(Dataset):
-    def __init__(self, dataset_path, batch_size, bptt, json_path_override=None):
+class CustomDataset(Dataset):
+    def __init__(self, dataset_path, batch_size, bptt, is_penn, json_path_override=None):
         self.batch_size = batch_size
         self.bptt = bptt
-        
-        processed_dataset_path, json_path = get_stream_batched_dataset_path(
-            dataset_path, batch_size, bptt)
+        # Create preprocessed data file names
+        if is_penn:
+            processed_dataset_path, json_path = get_stream_batched_dataset_path(
+                dataset_path, batch_size, bptt)
+        else:
+            processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
         
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_penn_dataset(dataset_path, self.batch_size, self.bptt, json_path_override)
+            if is_penn:
+                preprocess_penn_dataset(dataset_path, self.batch_size, self.bptt, json_path_override)
+            else:
+                preprocess_parens_dataset(dataset_path, json_path_override)
+
+        # Load the dataset from npy file
+        self.dataset = np.load(processed_dataset_path, allow_pickle=True)
 
         # Load the vocab
         if json_path_override:
             json_path = json_path_override
         self.vocab = Vocab(file_path=json_path)
         self.json_path = json_path
-
-        # Load the dataset from npy file
-        self.dataset = np.load(processed_dataset_path, allow_pickle=True)
-
 
     def __getitem__(self, idx):
         input_, target_ = self.dataset[idx]
@@ -223,31 +234,6 @@ class PennTreebankDataset(Dataset):
 
     def get_json_path(self):
         return self.json_path
-
-
-class ParensDataset(Dataset):
-    def __init__(self, dataset_path):
-        processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
-        # Create the preprocessed dataset if it doesn't already exist
-        if not os.path.exists(processed_dataset_path):
-            preprocess_parens_dataset(dataset_path)
-        # Load the dataset from npy file
-        self.dataset = np.load(processed_dataset_path, allow_pickle=True)
-        # Load the vocab
-        self.vocab = Vocab(file_path=json_path)
-
-
-    def __len__(self):
-        return len(self.dataset)
-
-
-    def __getitem__(self, idx):
-        input_, target_ = self.dataset[idx]
-        return input_, target_
-
-
-    def get_vocab(self):
-        return self.vocab
 
 
 class Vocab(object):
