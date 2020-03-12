@@ -51,6 +51,7 @@ def argParser():
     parser.add_argument("--is-penn", dest="is_penn", type=int, default=1, help="1: Train on PennTreebank 0: Train on parens data. \
         This argument is also passed to models to treat batches as streams.")
     parser.add_argument("--bptt", dest="bptt", type=int, default=70, help="Length of backpropogation through time")
+    parser.add_argument("--second-order-size", dest="second_order_size", type=int, default=2, help="Number of cells for the attention model.")
 
     args = parser.parse_args()
     return args
