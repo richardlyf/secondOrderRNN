@@ -140,7 +140,7 @@ class AssignmentLanguageModel(LanguageModelBase):
 class AttentionLanguageModel(LanguageModelBase):
     """ second order attention language model """     
     def __init__(self, vocab, second_order_size=2, batch_size=10, hidden_size=100, embed_size=12, \
-            device=None, temp_decay=0.9, temp_decay_interval=None, **kwargs):
+            device=None, temp_decay=0.9, temp_decay_interval=None, dropout_rate=0.5, **kwargs):
         """
         @param temp_decay: Everything temperature decays, the temperature is multiplied by this value
         @param temp_decay_interval: The temperature will decay after forward() is called temp_decay_interval times. Should be set to
@@ -157,6 +157,7 @@ class AttentionLanguageModel(LanguageModelBase):
             hidden_size=hidden_size)
 
         self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
+        self.drop = nn.Dropout(p=dropout_rate)
         
         self.counter = 0
         self.train_temperature = 1
@@ -183,8 +184,10 @@ class AttentionLanguageModel(LanguageModelBase):
             temperature = self.test_temperature
 
         embedded = self.embeddings(x)
+        embedded = self.drop(embedded)
         lstm_output, ret_state = self.lstm(embedded, temperature, init_state)
-        reshaped = lstm_output.view(-1, lstm_output.size(2))  
+        reshaped = lstm_output.view(-1, lstm_output.size(2))
+        reshaped = self.drop(reshaped)
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
