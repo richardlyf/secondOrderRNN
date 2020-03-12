@@ -130,7 +130,7 @@ class AttentionSecondOrderLSTM(nn.Module):
         @param temperature [1 - 0): Should decrease as the model continues to train. See documentation on temperature_softmax above
         @param lstm_states Tuple(Tensor(batch_size, hidden_size), *): Tuple of hidden state and cell state with the same shape
         @return combined_outputs Tensor(batch_size, seq_len, hidden_size): Output of all hidden states for each time sequence
-        @return last_dec_state: Tuple of the last hidden state and cell state in the time sequence
+        @return last_lstm_state: Tuple of the last hidden state and cell state in the time sequence
         """
         batch_size, seq_len, embed_size = input.shape
 

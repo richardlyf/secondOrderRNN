@@ -71,7 +71,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     parameters = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = torch.optim.Adam(params=parameters, lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=lr_factor, patience=patience)
-    criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
+    criterion = nn.NLLLoss(ignore_index=vocab.pad_id, )
 
     # Load checkpoint if specified
     if args.checkpoint != "":
@@ -171,7 +171,6 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
 
     print('Test Loss: {} | Test PPL: {} | Test WCPA: {}' \
         .format(test_loss, test_ppl, test_wcpa))
-
 
 def main():
     # setup

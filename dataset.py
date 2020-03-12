@@ -42,13 +42,6 @@ def tokenize_parens(string):
     return string.replace("END", "").split()
 
 
-def tokenize_ptb(string):
-    """
-    Tokenizer function for Penn Treebank dataset
-    """
-    return string.split()
-
-
 def pad_sents(sents, pad_token):
     """ 
     Pad list of sentences according to the longest sentence in the batch.
@@ -101,7 +94,7 @@ def get_glove(embed_path, vocab):
     np.save(processed_dataset_path, embedding_matrix, allow_pickle=True)
     return embedding_matrix
 
-def preprocess_parens_dataset(dataset_path, tokenizer):
+def preprocess_parens_dataset(dataset_path):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs.
@@ -114,7 +107,7 @@ def preprocess_parens_dataset(dataset_path, tokenizer):
     corpus = []
     with open(dataset_path, 'r') as f:
         for line in f:
-            line = tokenizer(line)
+            line = tokenize_parens(line)
             corpus.append(line)
 
     # Create the vocab and its mapping to indices
@@ -122,6 +115,9 @@ def preprocess_parens_dataset(dataset_path, tokenizer):
     vocab.save(json_path)
     # Transform sentences to corresponding indices
     sentences = vocab.words2indices(corpus)
+    # add start and end tokens
+    sentences = [[vocab['<start>']] + s + [vocab['<end>']] for s in sentences]
+    # add padding
     padded_sentences = pad_sents(sentences, vocab['<pad>'])
 
     # Create the dataset of (input, target) pairs
@@ -137,7 +133,7 @@ def preprocess_parens_dataset(dataset_path, tokenizer):
     np.save(npy_path, dataset, allow_pickle=True)
 
 
-def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt, json_path_override=None):
+def preprocess_penn_dataset(dataset_path, batch_size, bptt, json_path_override=None):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs. Note that the dataset created is specific to 
@@ -154,7 +150,7 @@ def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt, json_path
     corpus = []
     with open(dataset_path, 'r') as f:
         for line in f:
-            line = tokenizer(line)
+            line = line.split()
             corpus.append(line)
 
     # Create the vocab and its mapping to indices
@@ -203,8 +199,7 @@ class PennTreebankDataset(Dataset):
         
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_penn_dataset(dataset_path, tokenize_ptb, 
-                self.batch_size, self.bptt, json_path_override)
+            preprocess_penn_dataset(dataset_path, self.batch_size, self.bptt, json_path_override)
 
         # Load the vocab
         if json_path_override:
@@ -235,7 +230,7 @@ class ParensDataset(Dataset):
         processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            preprocess_parens_dataset(dataset_path, tokenize_parens)
+            preprocess_parens_dataset(dataset_path)
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)
         # Load the vocab
@@ -278,14 +273,15 @@ class Vocab(object):
             self.word2id['<unk>'] = 1   # Unknown Token
             self.pad_id = self.word2id['<pad>']
             self.unk_id = self.word2id['<unk>']
-            # self.word2id['<start>'] = 1 # Start Token
-            # self.word2id['<end>'] = 2    # End Token
+            self.word2id['<start>'] = 2 # Start Token
+            self.word2id['<end>'] = 3   # End Token
+
             self.id2word = {v: k for k, v in self.word2id.items()}
             word_freq = Counter(chain(*corpus))
             unique_words = [w for w, v in sorted(word_freq.items())]
             for word in unique_words:
                 self.add(word)
-
+                
         self.id2word = {v: k for k, v in self.word2id.items()}
         
 
