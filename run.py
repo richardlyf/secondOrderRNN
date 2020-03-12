@@ -5,11 +5,12 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
-from logger import Logger
-from utils import *
-from model import ModelChooser
-from dataset import *
-from eval import *
+
+from utils.logger import Logger
+from utils.utils import *
+from utils.eval import *
+from model.model import ModelChooser
+from model.dataset import *
 
 np.set_printoptions(precision=3)
 np.set_printoptions(suppress=True)
@@ -172,6 +173,7 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
 
     print('Test Loss: {} | Test PPL: {} | Test WCPA: {}' \
         .format(test_loss, test_ppl, test_wcpa))
+
 
 def main():
     # setup

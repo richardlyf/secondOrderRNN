@@ -1,4 +1,4 @@
-from dataset import *
+from model.dataset import *
 import math
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader

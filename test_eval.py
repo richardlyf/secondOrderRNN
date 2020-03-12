@@ -1,5 +1,5 @@
-from eval import *
-from dataset import *
+from utils.eval import *
+from model.dataset import *
 import sys
 import numpy as np
 import torch

@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from paren_mLSTM import paren_mLSTM, test_LSTM
-from attentionSecondOrderLSTM import AttentionSecondOrderLSTM
-from dataset import get_glove
+from model.paren_mLSTM import paren_mLSTM
+from model.attentionSecondOrderLSTM import AttentionSecondOrderLSTM
+from model.dataset import get_glove
 
 
 def ModelChooser(model_name, **kwargs):
