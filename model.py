@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from paren_mLSTM import paren_mLSTM, test_LSTM
 from attentionSecondOrderLSTM import AttentionSecondOrderLSTM
+from dataset import get_glove
+
 
 def ModelChooser(model_name, **kwargs):
     """
@@ -32,8 +34,15 @@ def ModelChooser(model_name, **kwargs):
         kwargs["assignments"] = assignments
         kwargs["num_cells"] = 1
         return TESTLanguageModel(**kwargs)
+        
+    if model_name == "ptb_lstm":
+        # fill in path to pretrained vector embeddings here
+        # if embed_path is left empty, model will train without embeddings
+        # kwargs["embed_path"] = "data/vectors/glove.840B.300d.txt"
+        return LSTMNaturalLanguageModel(**kwargs)
 
-
+# Updated to return hidden state, to be used for PTB baseline, but could be incorporated
+# into all models
 class LSTMLanguageModel(nn.Module):
     """ simple LSTM neural network language model """     
     def __init__(self, vocab, hidden_size=100, embed_size=12, dropout_rate=0.5, num_layers=1, **kwargs):
@@ -50,22 +59,89 @@ class LSTMLanguageModel(nn.Module):
 
         self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
         self.drop = nn.Dropout(p=dropout_rate)
-        
-    def forward(self, x):
+
+    def forward(self, x, init_state):
         """
         @param x: (batch_size, sequence_length)
+        @param init_state: Tuple(Tensor, Tensor)
+            each Tensor (batch_size, hidden_size)
         """
         # (batch_size, sequence_length, embed_size)
         embedded = self.embeddings(x)
         # (batch_size, sequence_length, embed_size)
-        lstm_output, hdn = self.lstm(embedded)
+        lstm_output, ret_state = self.lstm(embedded, init_state)
         # (batch_size * sequence_length, hidden_size)
         reshaped = lstm_output.reshape(-1, lstm_output.size(2))
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
-        return logits
+        return logits, ret_state
+
+
+
+class LSTMNaturalLanguageModel(nn.Module):
+    """ simple LSTM neural network language model """     
+    def __init__(self, vocab, hidden_size=100, embed_size=300, dropout_rate=0.5, num_layers=1, embed_path=None, device=None, batch_size=None,**kwargs):
+        super(LSTMNaturalLanguageModel, self).__init__()
+        
+        self.batch_size = batch_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        vocab_size = len(vocab)
+        
+        self.embeddings = nn.Embedding(vocab_size, embed_size)
+
+        # load glove embeddings and initialize 
+        if embed_path is not None:
+            glove_embeddings = get_glove(embed_path, vocab)
+            glove_tensor = torch.tensor(glove_embeddings, dtype=torch.float32, device=device)
+            self.embeddings.weight = nn.Parameter(glove_tensor)
+            self.embeddings.weight.requires_grad = False
+
+        self.lstm = nn.LSTM(
+            input_size=embed_size, 
+            hidden_size=hidden_size, 
+            num_layers=num_layers, 
+            batch_first=True)
+
+        self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
+        self.drop = nn.Dropout(p=dropout_rate)
+
+    def init_lstm_state(self, device):
+        zero_hidden = torch.zeros((
+            self.num_layers, 
+            self.batch_size, 
+            self.hidden_size), device=device) 
+        zero_cell = torch.zeros((
+            self.num_layers, 
+            self.batch_size, 
+            self.hidden_size), device=device) 
+        return (zero_hidden, zero_cell)
+
+    def detach_hidden(self, hidden):
+        """ util function to keep down number of graphs """
+        return tuple([h.detach() for h in hidden])
+
+    def forward(self, x, init_state):
+        """
+        @param x: (batch_size, sequence_length)
+        @param init_state: Tuple(Tensor, Tensor)
+            each Tensor (batch_size, hidden_size)
+        """
+        # (batch_size, sequence_length, embed_size)
+        embedded = self.embeddings(x)
+        embedded = self.drop(embedded)
+        # (batch_size, sequence_length, embed_size)
+        lstm_output, ret_state = self.lstm(embedded, init_state)
+        # (batch_size * sequence_length, hidden_size)
+        reshaped = lstm_output.reshape(-1, lstm_output.size(2))
+        reshaped = self.drop(reshaped)
+        decoded = self.linear(reshaped)
+        # (batch_size * sequence_length, vocab_size)
+        logits = F.log_softmax(decoded, dim=1)
+                
+        return logits, self.detach_hidden(ret_state)
 
 
 class AssignmentLanguageModel(nn.Module):
@@ -88,18 +164,33 @@ class AssignmentLanguageModel(nn.Module):
         self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
         self.drop = nn.Dropout(p=dropout_rate)
 
-    def forward(self, x):
+    def init_lstm_state(self, device):
+        zero_hidden = torch.zeros((
+            self.num_layers, 
+            self.batch_size, 
+            self.hidden_size), device=device) 
+        zero_cell = torch.zeros((
+            self.num_layers, 
+            self.batch_size, 
+            self.hidden_size), device=device) 
+        return (zero_hidden, zero_cell)
+
+    def detach_hidden(self, hidden):
+        """ util function to keep down number of graphs """
+        return tuple([h.detach() for h in hidden])
+
+    def forward(self, x, init_state):
         """
         @param x: (batch_size, sequence_length)
         """
         embedded = self.embeddings(x)
-        lstm_output, hdn = self.lstm(x, embedded)
+        lstm_output, ret_state = self.lstm(x, embedded, init_state)
         reshaped = lstm_output.view(-1, lstm_output.size(2))
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
                 
-        return logits
+        return logits, self.detach_hidden(ret_state)
 
 
 class AttentionLanguageModel(nn.Module):
@@ -127,7 +218,7 @@ class AttentionLanguageModel(nn.Module):
         self.test_temperature = 1e-5
         self.temp_decay = temp_decay
         self.temp_decay_interval = temp_decay_interval
-
+        
     def forward(self, x):
         """
         Predict, return hidden state so it can be used to intialize the next hidden state 
@@ -174,7 +265,6 @@ class TESTLanguageModel(nn.Module):
             device=device)
 
         self.linear = nn.Linear(in_features=hidden_size, out_features=vocab_size)
-        
 
     def forward(self, x):
         """

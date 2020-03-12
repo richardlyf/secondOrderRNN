@@ -47,16 +47,23 @@ def argParser():
     parser.add_argument("--lr", dest="lr", type=float, default=3e-4, help="Learning rate for training")
     parser.add_argument("--lr-decay", dest="lr_decay", type=float, default=0.5, help="Factor by which the learning rate decays")
     parser.add_argument("--patience", dest="patience", type=int, default=3, help="Learning rate decay scheduler patience, number of epochs")
+
+    # Adding argument is_stream to use with PTB dataset
+    parser.add_argument("--is-stream", dest="is_stream", type=bool, default=False, help="Whether we are streaming data input like in PTB")
+    parser.add_argument("--bptt", dest="bptt", type=int, default=70, help="Length of backpropogation through time")
+
     args = parser.parse_args()
     return args
 
 
 def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     batch_size = args.batch_size
+    hidden_size = args.hidden_size
     log_every = args.log_every
     lr = args.lr
     lr_factor = args.lr_decay
     patience = args.patience
+    is_stream = args.is_stream
     num_epochs = args.epochs
     save_to_log = logger is not None
     logdir = logger.get_logdir() if logger is not None else None
@@ -80,12 +87,19 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
         epoch_loss = []
         model.train()
 
+        # Initialized as zeros, after first call to forward()
+        # will be tuple(Tensor, Tensor), each Tensor (batch_size, hidden_size)
+        init_state = model.init_lstm_state(device)
         for batch_iter, batch in enumerate(tqdm(train_dataset)):
             x, y = batch
             x = x.to(device)
             y = y.view(-1).to(device)
+
             optimizer.zero_grad()
-            y_pred = model(x)
+            # When training on PTB, we want to preserve internal states between
+            # batches in the epoch
+            y_pred, ret_state = model(x, init_state)
+            init_state = ret_state if is_stream else init_state
             # Criterion takes in y: (batch_size*seq_len) correct labels and 
             # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
@@ -100,7 +114,8 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
         with torch.no_grad():
             epoch_average_loss = np.mean(epoch_loss)
             epoch_train_ppl = np.exp(epoch_average_loss)
-            epoch_val_ppl, epoch_val_loss, epoch_val_wcpa, _ = validate(model, criterion, val_dataset, device)
+            epoch_val_ppl, epoch_val_loss, epoch_val_wcpa, _ = \
+                validate(model, criterion, val_dataset, is_stream, device)
             scheduler.step(epoch_val_loss)
 
             # Check for early stopping
@@ -144,7 +159,8 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     # initialize criterion 
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
     with torch.no_grad(): # for reals, don't use dropout
-        test_ppl, test_loss, test_wcpa, graph_data = validate(model, criterion, test_dataset, device)
+        test_ppl, test_loss, test_wcpa, graph_data = validate(
+            model, criterion, test_dataset, args.is_stream, device)
 
     # plot ldpa by distance
     if plot:
@@ -170,13 +186,15 @@ def main():
 
     # build dataset object
     print("Creating Dataset...")
-    train_dataset = ParensDataset(args.train_path)
-    val_dataset = ParensDataset(args.valid_path)
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
-    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=4)
+    train_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
+    train_json_path = train_dataset.get_json_path()
+    val_dataset = PennTreebankDataset(args.valid_path, args.batch_size, args.bptt, json_path_override=train_json_path)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+
     if args.mode == 'test':
-        test_dataset = ParensDataset(args.test_path)
-        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=4)
+        test_dataset = PennTreebankDataset(args.test_path, args.batch_size, args.bptt, json_path_override=train_json_path)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     print("Done!")
 
     # build model
@@ -193,7 +211,7 @@ def main():
         train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
     if args.mode == 'test':
         print("Starting testing...")
-        test(args.checkpoint, model, vocab, test_dataloader, args, device, plot=True)
+        test(args.checkpoint, model, vocab, test_dataloader, args, device, plot=False)
 
 if __name__ == "__main__":
     main()
