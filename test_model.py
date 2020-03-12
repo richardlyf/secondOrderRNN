@@ -44,5 +44,5 @@ def test(dataset):
 
 
 if __name__ == "__main__":
-    dataset = ParensDataset("./data/mbounded-dyck-k/m4/train.formal.txt")
+    dataset = CustomDataset("./data/mbounded-dyck-k/m4/train.formal.txt")
     test(dataset)

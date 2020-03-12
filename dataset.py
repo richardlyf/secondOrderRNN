@@ -196,7 +196,7 @@ def preprocess_penn_dataset(dataset_path, batch_size, bptt, json_path_override=N
 
 
 class CustomDataset(Dataset):
-    def __init__(self, dataset_path, batch_size, bptt, is_penn, json_path_override=None):
+    def __init__(self, dataset_path, batch_size=0, bptt=0, is_penn=False, json_path_override=None):
         self.batch_size = batch_size
         self.bptt = bptt
         # Create preprocessed data file names

@@ -18,7 +18,7 @@ def test_penntreebank():
         for line in f:
             words += line.split()
 
-    treebank = PennTreebankDataset(path, batch_size=batch_size, bptt=bptt)
+    treebank = CustomDataset(path, batch_size=batch_size, bptt=bptt, is_penn=True)
     dataloader = DataLoader(treebank, batch_size=batch_size, shuffle=False, num_workers=4)
     vocab = Vocab(file_path="data/penn/train.json")
     

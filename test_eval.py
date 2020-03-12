@@ -89,7 +89,7 @@ def test_ldpa(vocab):
     assert(ldpa[3][1] == 1), "Expect 1 above thresh at dist 3, got {}".format(ldpa[3][1]) # 1 of which above threshold
 
     # Test 5: validate wcpa
-    val_dataset = ParensDataset("./data/mbounded-dyck-k/m4/dev.formal.txt")
+    val_dataset = CustomDataset("./data/mbounded-dyck-k/m4/dev.formal.txt", json_path_override="./data/mbounded-dyck-k/m4/train.formal.json")
     x, y = val_dataset[0]
     max_sents_len = len(x)
     total_ldpa_counts = np.zeros((max_sents_len, 2), dtype=np.int64)
