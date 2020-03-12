@@ -188,13 +188,14 @@ def main():
     # build dataset object
     print("Creating Dataset...")
     train_dataset = PennTreebankDataset(args.train_path, args.batch_size, args.bptt)
-    val_dataset = PennTreebankDataset(args.valid_path, args.batch_size, args.bptt)
+    train_json_path = train_dataset.get_json_path()
+    val_dataset = PennTreebankDataset(args.valid_path, args.batch_size, args.bptt, json_path_override=train_json_path)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     if args.mode == 'test':
-        test_dataset = PennTreebankDataset(args.test_path, args.batch_size, args.bptt)
-        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=1)
+        test_dataset = PennTreebankDataset(args.test_path, args.batch_size, args.bptt, json_path_override=train_json_path)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     print("Done!")
 
     # build model

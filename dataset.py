@@ -137,7 +137,7 @@ def preprocess_parens_dataset(dataset_path, tokenizer):
     np.save(npy_path, dataset, allow_pickle=True)
 
 
-def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt):
+def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt, json_path_override=None):
     """
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs. Note that the dataset created is specific to 
@@ -145,6 +145,8 @@ def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt):
 
     This will be called to generate dataset for train, val, and test.
     The .json and .npy file names have the same root name as the dataset_path.
+    @json_path_override: When creating the validation set, the json file of the train dataset should 
+    be passed in so all words share the same indicies.
     """
     npy_path, json_path = get_stream_batched_dataset_path(dataset_path, batch_size, bptt)
 
@@ -156,8 +158,12 @@ def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt):
             corpus.append(line)
 
     # Create the vocab and its mapping to indices
-    vocab = Vocab(corpus=corpus)
-    vocab.save(json_path)
+    if json_path_override:
+        vocab = Vocab(file_path=json_path_override)
+    else:
+        vocab = Vocab(corpus=corpus)
+        vocab.save(json_path)
+
     # Transform sentences to corresponding indices
     flat_corpus = [item for sublist in corpus for item in sublist]
     stream = vocab.words2indices(flat_corpus)
@@ -188,7 +194,7 @@ def preprocess_penn_dataset(dataset_path, tokenizer, batch_size, bptt):
 
 
 class PennTreebankDataset(Dataset):
-    def __init__(self, dataset_path, batch_size, bptt):
+    def __init__(self, dataset_path, batch_size, bptt, json_path_override=None):
         self.batch_size = batch_size
         self.bptt = bptt
         
@@ -198,10 +204,13 @@ class PennTreebankDataset(Dataset):
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
             preprocess_penn_dataset(dataset_path, tokenize_ptb, 
-                self.batch_size, self.bptt)
+                self.batch_size, self.bptt, json_path_override)
 
         # Load the vocab
+        if json_path_override:
+            json_path = json_path_override
         self.vocab = Vocab(file_path=json_path)
+        self.json_path = json_path
 
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)
@@ -216,6 +225,9 @@ class PennTreebankDataset(Dataset):
 
     def get_vocab(self):
         return self.vocab
+
+    def get_json_path(self):
+        return self.json_path
 
 
 class ParensDataset(Dataset):
