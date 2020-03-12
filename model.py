@@ -131,10 +131,12 @@ class LSTMNaturalLanguageModel(nn.Module):
         """
         # (batch_size, sequence_length, embed_size)
         embedded = self.embeddings(x)
+        embedded = self.drop(embedded)
         # (batch_size, sequence_length, embed_size)
         lstm_output, ret_state = self.lstm(embedded, init_state)
         # (batch_size * sequence_length, hidden_size)
         reshaped = lstm_output.reshape(-1, lstm_output.size(2))
+        reshaped = self.drop(reshaped)
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
         logits = F.log_softmax(decoded, dim=1)
