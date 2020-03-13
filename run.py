@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import json
 import os
 import torch
 import torch.nn as nn
@@ -222,6 +223,7 @@ def main():
 
     # build model
     kwargs = vars(args) # Turns args into a dictionary
+    params = kwargs.copy()
     vocab = train_dataset.get_vocab()
     kwargs["vocab"] = vocab
     kwargs["temp_decay_interval"] = len(train_dataloader)
@@ -231,6 +233,8 @@ def main():
     if args.mode == 'train':
         # train model
         print("Starting training...")
+        # Save all params used to train
+        json.dump(params, open(os.path.join(unique_logdir, "params.json"), 'w'), indent=2)
         train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
     elif args.mode == 'test':
         print("Starting testing...")
