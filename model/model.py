@@ -16,8 +16,8 @@ def ModelChooser(model_name, **kwargs):
     if model_name == "mLSTM":
         # Group by a paren and b paren
         assignments = {
-            0: [0, 2, 4],
-            1: [1, 3, 5]
+            0: [2, 3, 4, 6],
+            1: [0, 1, 5, 7]
         }
         kwargs["assignments"] = assignments
         return AssignmentLanguageModel(**kwargs)
