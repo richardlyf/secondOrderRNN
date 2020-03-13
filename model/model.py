@@ -49,6 +49,14 @@ class LanguageModelBase(nn.Module):
         zero_cell = torch.zeros(self.hidden_shape, device=device) 
         return (zero_hidden, zero_cell)
 
+    def generate_context_state(self, device):
+        """
+        Initialize hidden state and cell state to random
+        """
+        context_hidden = torch.randn(self.hidden_shape, device=device) 
+        context_cell = torch.randn(self.hidden_shape, device=device) 
+        return (context_hidden, context_cell)
+
     def detach_hidden(self, hidden):
         """
         Detaches the lstm states before returning them in forward()

@@ -33,7 +33,7 @@ def argParser():
     # General model specification
     parser.add_argument("--mode", dest="mode", default='train', help="Mode is one of 'train', 'test', 'generate'")
     parser.add_argument("--model", dest="model", default="baseline_lstm", help="Name of model to use")
-    parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch")
+    parser.add_argument("--batch-size", dest="batch_size", type=int, default=10, help="Size of the minibatch, or num lines to generate")
     parser.add_argument("--embedding-size", dest='embed_size', type=int, default=12, help="Size of the word embedding")
     parser.add_argument("--hidden-size", dest="hidden_size", type=int, default=256, help="Dimension of hidden layer")
     parser.add_argument("--num-layers", dest='num_layers', type=int, default=1, help="Number of LSTM layers")
@@ -57,9 +57,10 @@ def argParser():
     parser.add_argument("--lr-decay", dest="lr_decay", type=float, default=0.5, help="Factor by which the learning rate decays")
     parser.add_argument("--patience", dest="patience", type=int, default=3, help="Learning rate decay scheduler patience, number of epochs")
     # Arguments for generating texts
+    # Number of lines to generate is set by the batch size
     parser.add_argument("--output-file", dest="output_file", type=str, default="generated.txt", help="File name to save the generated texts.")
-    parser.add_argument("--generate-length", dest="generate_length", type=int, default=10, help="Number of sentences to generate")
-    parser.add_argument("--sentence-length", dest="sentence_length", type=int, default=10, help="Max length of generated sentence")
+    parser.add_argument("--sentence-length", dest="max_sentence_length", type=int, default=10, help="Max length of generated sentence")
+    parser.add_argument("--generation-method", dest="generation_method", type=str, default="greedy", help="Select next words using greedy, random, or beam")
 
     args = parser.parse_args()
     return args
@@ -184,16 +185,17 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
 
 def generate_texts(checkpoint, model, vocab, args, device):
     dirname, filename = os.path.split(checkpoint)
-    save_file = os.path.abspath(os.path.join(dirname, args.output_file))
+    save_file = os.path.abspath(os.path.join(dirname, "..", args.output_file))
     model = load_checkpoint(checkpoint, model, device)
     model.eval()
     with torch.no_grad():
-        sents = generate_sentences(model, vocab, args.batch_size, args.max_sentence_length, args.is_penn, device)
+        sents = generate_sentences(model, vocab, args.batch_size, args.max_sentence_length, \
+            args.is_penn, args.generation_method, device)
     print("Saving generated text to file...")
     with open(save_file, "w") as f:
         for line in sents:
             f.write(line + "\n")
-    print("Done!")
+    print("File saved to: ", save_file)
         
 
 def main():
@@ -216,17 +218,18 @@ def main():
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
+    kwargs = vars(args) # Turns args into a dictionary
+    params = kwargs.copy()
+    vocab = train_dataset.get_vocab()
+    kwargs["vocab"] = vocab
+    kwargs["temp_decay_interval"] = len(train_dataloader)
+
     if args.mode == 'test':
         test_dataset = CustomDataset(args.test_path, args.batch_size, args.bptt, is_penn=args.is_penn, json_path_override=train_json_path)
         test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     print("Done!")
 
     # build model
-    kwargs = vars(args) # Turns args into a dictionary
-    params = kwargs.copy()
-    vocab = train_dataset.get_vocab()
-    kwargs["vocab"] = vocab
-    kwargs["temp_decay_interval"] = len(train_dataloader)
     model = ModelChooser(args.model, **kwargs)
     model = model.to(device)
 
