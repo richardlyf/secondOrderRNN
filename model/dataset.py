@@ -251,25 +251,26 @@ class Vocab(object):
         if file_path:
             entry = json.load(open(file_path, 'r'))
             self.word2id = entry["word2id"]
-            self.pad_id = self.word2id['<pad>']
-            self.unk_id = self.word2id['<unk>']
         else:
             self.word2id = dict()
             self.word2id['<pad>'] = 0   # Pad Token
             self.word2id['<unk>'] = 1   # Unknown Token
-            self.pad_id = self.word2id['<pad>']
-            self.unk_id = self.word2id['<unk>']
             self.word2id['<start>'] = 2 # Start Token
             self.word2id['<end>'] = 3   # End Token
+            # Add word below uses self.unk_id
+            self.unk_id = self.word2id['<unk>']
 
             self.id2word = {v: k for k, v in self.word2id.items()}
             word_freq = Counter(chain(*corpus))
             unique_words = [w for w, v in sorted(word_freq.items())]
             for word in unique_words:
                 self.add(word)
-                
+
         self.id2word = {v: k for k, v in self.word2id.items()}
-        
+        self.pad_id = self.word2id['<pad>']
+        self.unk_id = self.word2id['<unk>']
+        self.start_id = self.word2id['<start>']
+        self.end_id = self.word2id['<end>']
 
     def __getitem__(self, word):
         """ Retrieve word's index. Return the index for the unk
