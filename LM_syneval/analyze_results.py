@@ -10,9 +10,13 @@ logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser(description="Which kind of results to display")
 
+########################  Required Arguments  ################################
 parser.add_argument('--results_file', type=str, required=True,
                     help='Path to where the results for the LM are stored')
-parser.add_argument('--model_type', type=str, required=True,
+parser.add_argument('--mode', type=str, default='overall',
+                    help='Level of detail to report (overall/condensed/full)')
+##############################################################################
+parser.add_argument('--model_type', type=str, default='RNN',
                     help='Which kind of model (RNN/multitask/ngram)')
 parser.add_argument('--analysis', type=str, default='full_sent',
                     help='How to compare scores (full_sent or word_only)')
@@ -22,8 +26,6 @@ parser.add_argument('--anim', action='store_true', default=False,
                     help='Examine the effect of animacy on the results')
 parser.add_argument('--out_dir', type=str, default='results',
                     help='Directory to store the results files')
-parser.add_argument('--mode', type=str, default='overall',
-                    help='Level of detail to report (overall/condensed/full)')
 parser.add_argument('--unit_type', type=str, default='word',
                     help='Unit used for language modeling (word/char)')
 args = parser.parse_args()

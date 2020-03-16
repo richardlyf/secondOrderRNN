@@ -23,27 +23,24 @@ args = parser.parse_args()
 
 writer = TestWriter(args.template_dir, args.test_sents_file)
 testcase = TestCase()
-if args.tests == 'agrmt':
-    tests = testcase.agrmt_cases
-elif args.tests == 'npi':
-    tests = testcase.npi_cases
-else:
-    tests = testcase.all_cases
+tests = testcase.all_cases
 
 all_test_sents = {}
 for test_name in tests:
     test_sents = pickle.load(open(args.template_dir+"/"+test_name+".pickle", 'rb'))
     all_test_sents[test_name] = test_sents
 
-writer.write_tests(all_test_sents, args.unit_type)
+unit_type = "word"
+writer.write_tests(all_test_sents, unit_type)
 name_lengths = writer.name_lengths
 key_lengths = writer.key_lengths
 
 
-logging.info("Testing RNN...")
-results = score_rnn()
-with open("RNN_results.pickle", 'wb') as f:
-    pickle.dump(results, f)
+def main():
+    logging.info("Testing RNN...")
+    results = score_rnn()
+    with open("RNN_results.pickle", 'wb') as f:
+        pickle.dump(results, f)
 
 
 def score_rnn():
@@ -80,6 +77,10 @@ def score_rnn():
                                     all_scores[k1][k2].append(sent)
                     sent = []
                     if float(sentid) != prev_sentid+1:
-                        logging.info("Error at sents "+sentid+" and "+prev_sentid)
+                        logging.info("Error at sents " + str(sentid) + " and " + str(prev_sentid))
                     prev_sentid = float(sentid)
     return all_scores
+
+
+if __name__ == '__main__':
+    main()

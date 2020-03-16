@@ -213,7 +213,7 @@ class CustomDataset(Dataset):
             processed_dataset_path, json_path = get_stream_batched_dataset_path(
                 dataset_path, batch_size, bptt)
         else:
-            processed_dataset_path, json_path = get_processed_dataset_path(dataset_path)
+            processed_dataset_path, json_path = get_processed_dataset_path(dataset_path, is_stream)
         
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
