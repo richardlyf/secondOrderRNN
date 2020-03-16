@@ -1,3 +1,0 @@
-[submodule "LM_syneval"]
-	path = LM_syneval
-	url = git@github.com:richardlyf/LM_syneval.git
