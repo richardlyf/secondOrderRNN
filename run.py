@@ -160,9 +160,13 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     print('Model trained.')
 
 
-def test(checkpoint, model, vocab, test_dataset, args, device, stats_output_file=None, plot=False):
+def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     batch_size = args.batch_size
 
+    stats_output_file = None
+    if args.stats_output_file != "None":
+        dirname, filename = os.path.split(checkpoint)
+        stats_output_file = os.path.abspath(os.path.join(dirname, "..", args.stats_output_file))
     # load model from checkpoint
     model = load_checkpoint(checkpoint, model, device)
     model.eval()
@@ -242,9 +246,7 @@ def main():
         train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
     elif args.mode == 'test':
         print("Starting testing...")
-        if args.stats_output_file != "None":
-            stats_output_file = os.path.join(unique_logdir, args.stats_output_file)
-        test(args.checkpoint, model, vocab, test_dataloader, args, device, stats_output_file=stats_output_file, plot=False)
+        test(args.checkpoint, model, vocab, test_dataloader, args, device, plot=False)
     elif args.mode == 'generate':
         print("Starting text generation...")
         generate_texts(args.checkpoint, model, vocab, args, device)

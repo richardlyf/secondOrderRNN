@@ -130,9 +130,10 @@ def record_complexity(y_pred, target, sentence_id, vocab, f=None):
         # Stop at the end token
         if target_index == vocab.end_id:
             break
+        target_index = target_index.item()
         word = vocab.id2word[target_index]
         surprise = surprises[target_pos][target_index]
-        stat = str(word) + ' ' + str(sentid) + ' ' + str(target_pos) + ' ' + str(len(word)) + ' ' + str(surprise) + ' ' + str(entropy[target_pos])
+        stat = str(word) + ' ' + str(sentence_id) + ' ' + str(target_pos) + ' ' + str(len(word)) + ' ' + str(surprise.item()) + ' ' + str(entropy[target_pos].item())
         f.write(stat)
         f.write("\n")
 
