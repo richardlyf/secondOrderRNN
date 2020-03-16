@@ -15,9 +15,11 @@ parser = argparse.ArgumentParser(description="Parameters for testing a language 
 parser.add_argument('--template_dir', type=str, default='EMNLP2018/templates',
                     help='Location of the template files')
 parser.add_argument('--test_sents_file', type=str, default='all_test_sents.txt',
-                    help='File with all of the sentences that will be tested')
+                    help='File to store all of the sentences that will be tested')
 parser.add_argument('--input_file', type=str, default='rnn.output',
                     help='File that stores all the statistics of the model')
+parser.add_argument('--generate_test_sents', action='store_true',
+                    help='Creates all test sentences in specified test_sents_file')
 
 args = parser.parse_args()
 
@@ -30,6 +32,7 @@ for test_name in tests:
     test_sents = pickle.load(open(args.template_dir+"/"+test_name+".pickle", 'rb'))
     all_test_sents[test_name] = test_sents
 
+# Generate test sentences from pickle files
 unit_type = "word"
 writer.write_tests(all_test_sents, unit_type)
 name_lengths = writer.name_lengths
@@ -37,10 +40,12 @@ key_lengths = writer.key_lengths
 
 
 def main():
-    logging.info("Testing RNN...")
-    results = score_rnn()
-    with open("RNN_results.pickle", 'wb') as f:
-        pickle.dump(results, f)
+    if args.generate_test_sents:
+        logging.info("All test sentences generated and stored!")
+    else:
+        results = score_rnn()
+        with open("RNN_results.pickle", 'wb') as f:
+            pickle.dump(results, f)
 
 
 def score_rnn():

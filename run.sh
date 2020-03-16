@@ -19,7 +19,7 @@ elif [ "$1" = "test_penn" ]; then
 elif [ "$1" = "debug_penn" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --model ptb_lstm --train-path=./data/penn/tiny_train.txt --valid-path=./data/penn/valid.txt --test-path=./data/penn/test.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --dropout 0 --lr 1e-4 --is-stream 1 --bptt 70
 elif [ "$1" = "wiki_stats" ]; then
-    CUDA_VISIBLE_DEVICES=0 python3 run.py --mode test --model ptb_lstm --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --test-path LM_syneval/EMNLP2018/templates/all_test_sents.txt --checkpoint ./final/wiki2_baseline/best_val_ppl.pth --hidden-size 600 --embedding-size 300 --batch-size 16 --dropout 0.5 --lr 1e-4 --is-stream 0 --bptt 70 --stats-output-file rnn.output
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --mode test --model ptb_lstm --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --test-path LM_syneval/EMNLP2018/templates/all_test_sents.txt --checkpoint ./final/wiki2_baseline/best_val_ppl.pth --hidden-size 600 --embedding-size 300 --batch-size 1 --dropout 0.5 --lr 1e-4 --is-stream 0 --bptt 70 --stats-output-file rnn.output
 else
 	echo "Invalid Option Selected"
 fi
