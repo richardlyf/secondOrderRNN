@@ -178,7 +178,7 @@ def test(checkpoint, model, vocab, test_dataset, args, device):
             model, criterion, test_dataset, args.is_stream, device, vocab, stats_output_file)
 
     # plot ldpa by distance
-    if not args.is_stream:
+    if not args.is_stream and args.stats_output_file == "None":
         dirname, filename = os.path.split(checkpoint)
         save_path = os.path.abspath(os.path.join(dirname, 
             "test_ldpa_{}.png".format(os.path.splitext(filename)[0])))

@@ -37,7 +37,7 @@ def validate(model, criterion, val_dataset, is_stream, device, \
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())
         # wcpa
-        if not is_stream:
+        if not is_stream and stats_output_file is None:
             ldpa_counts = get_LDPA_counts(y=y, y_pred=y_p, batch_size=batch_size,
                 max_dist=max_sents_len)
             total_ldpa_counts += ldpa_counts
@@ -49,7 +49,10 @@ def validate(model, criterion, val_dataset, is_stream, device, \
     val_loss = np.mean(aggregate_loss)
     val_ppl = np.exp(val_loss)
     # wcpa and ldpa
-    if not is_stream:
+    wcpa = -1
+    valid_dist = None
+    ldpa = None
+    if not is_stream and stats_output_file is None:
         valid_dist = np.where(total_ldpa_counts[:, 0] > 0)
         ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
         wcpa = np.min(ldpa)
