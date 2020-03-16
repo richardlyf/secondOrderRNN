@@ -60,6 +60,8 @@ def argParser():
     parser.add_argument("--output-file", dest="output_file", type=str, default="generated.txt", help="File name to save the generated texts.")
     parser.add_argument("--sentence-length", dest="max_sentence_length", type=int, default=10, help="Max length of generated sentence")
     parser.add_argument("--generation-method", dest="generation_method", type=str, default="greedy", help="Select next words using greedy, random, or beam")
+    # Arguments for LM syntax eval
+    parser.add_argument("--stats-output-file", dest="stats_output_file", type=str, default="None", help="File name to save the statistics on generated sentence syntax.")
 
     args = parser.parse_args()
     return args
@@ -158,7 +160,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     print('Model trained.')
 
 
-def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
+def test(checkpoint, model, vocab, test_dataset, args, device, stats_output_file=None, plot=False):
     batch_size = args.batch_size
 
     # load model from checkpoint
@@ -169,7 +171,7 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
     with torch.no_grad():
         test_ppl, test_loss, test_wcpa, graph_data = validate(
-            model, criterion, test_dataset, args.is_stream, device)
+            model, criterion, test_dataset, args.is_stream, device, vocab, stats_output_file)
 
     # plot ldpa by distance
     if plot:
@@ -240,7 +242,9 @@ def main():
         train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
     elif args.mode == 'test':
         print("Starting testing...")
-        test(args.checkpoint, model, vocab, test_dataloader, args, device, plot=False)
+        if args.stats_output_file != "None":
+            stats_output_file = os.path.join(unique_logdir, args.stats_output_file)
+        test(args.checkpoint, model, vocab, test_dataloader, args, device, stats_output_file=stats_output_file, plot=False)
     elif args.mode == 'generate':
         print("Starting text generation...")
         generate_texts(args.checkpoint, model, vocab, args, device)

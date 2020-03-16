@@ -1,27 +1,38 @@
 import itertools
 import numpy as np
 import torch
+import torch.nn.functional as F
 
-def validate(model, criterion, val_dataset, is_stream, device):
+def validate(model, criterion, val_dataset, is_stream, device, \
+        vocab=None, stats_output_file=None):
     """
     Computes both perplexity and WCPA on the validation set
     Aggregate version of validate_ppl and validate_wcpa so we loop through
     validation set only once and save training time.
+
+    If stats_output_file is not None, we will be collecting statistics on the test sentences
+    and store them in stats_output_file
     """
     x, y = next(iter(val_dataset))
     batch_size, max_sents_len = x.size()
     total_ldpa_counts = np.zeros((max_sents_len, 2), dtype=np.int64)
     aggregate_loss = []
+    # syntax stats
+    if stats_output_file is not None:
+        f = open(stats_output_file, "w")
 
     # initialize hidden state
     init_state = model.init_lstm_state(device=device)
-    for batch in val_dataset:
+    for sentence_id, batch in enumerate(val_dataset):
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
         
         y_p, ret_state = model(x, init_state)
         init_state = ret_state if is_stream else init_state
+        # syntax stats
+        if stats_output_file is not None:
+            record_complexity(y_p, y, sentence_id, vocab, f=f)
         # ppl
         loss = criterion(y_p, y)
         aggregate_loss.append(loss.item())
@@ -31,6 +42,9 @@ def validate(model, criterion, val_dataset, is_stream, device):
                 max_dist=max_sents_len)
             total_ldpa_counts += ldpa_counts
 
+    # close file
+    if stats_output_file is not None:
+        f.close()
     # val_loss and ppl
     val_loss = np.mean(aggregate_loss)
     val_ppl = np.exp(val_loss)
@@ -43,6 +57,7 @@ def validate(model, criterion, val_dataset, is_stream, device):
         return val_ppl, val_loss, -1, None
     else:
         return val_ppl, val_loss, wcpa, (valid_dist, ldpa)
+
 
 def validate_ppl(model, criterion, val_dataset, device):
     """
@@ -88,6 +103,38 @@ def validate_wcpa(model, val_dataset, device):
     ldpa = total_ldpa_counts[valid_dist, 1] / total_ldpa_counts[valid_dist, 0]  
     wcpa = np.min(ldpa) 
     return wcpa, (valid_dist, ldpa)
+
+
+def record_complexity(y_pred, target, sentence_id, vocab, f=None):
+    """
+    For test only.
+    Used to record statistics on predicted words. The log can then be used to analyze
+    long term sentence dependencies.
+    Tests for sentence dependencies are found at repo: https://github.com/richardlyf/LM_syneval
+    @param y_pred (batch_size * seq_len, vocab_size): Output of the model
+    @param target (batch_size * seq_len, ): Correct indices for the prediction
+    @sentence_id int: The index for the sentence in the batch, used to track which test sentence it is
+    @vocab: Object that stores mapping from words to word indices
+    @f file object: Results will be written to this opened file.
+    @return None
+    """
+    # Compute entropy
+    probs = torch.exp(y_pred)
+    # (batch_size * seq_len)
+    entropy = -1 * torch.sum(probs * y_pred, dim=1)
+
+    # Compute Shannon surprise
+    surprises = -1 * y_pred
+
+    for target_pos, target_index in enumerate(target):
+        # Stop at the end token
+        if target_index == vocab.end_id:
+            break
+        word = vocab.id2word[target_index]
+        surprise = surprises[target_pos][target_index]
+        stat = str(word) + ' ' + str(sentid) + ' ' + str(target_pos) + ' ' + str(len(word)) + ' ' + str(surprise) + ' ' + str(entropy[target_pos])
+        f.write(stat)
+        f.write("\n")
 
 
 def get_distances(y, close_idx=[6, 7], open_idx=[4, 5], pad_idx=0):
