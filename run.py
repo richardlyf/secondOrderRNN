@@ -160,7 +160,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     print('Model trained.')
 
 
-def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
+def test(checkpoint, model, vocab, test_dataset, args, device):
     batch_size = args.batch_size
 
     stats_output_file = None
@@ -178,7 +178,7 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
             model, criterion, test_dataset, args.is_stream, device, vocab, stats_output_file)
 
     # plot ldpa by distance
-    if plot:
+    if not args.is_stream:
         dirname, filename = os.path.split(checkpoint)
         save_path = os.path.abspath(os.path.join(dirname, 
             "test_ldpa_{}.png".format(os.path.splitext(filename)[0])))
@@ -246,7 +246,7 @@ def main():
         train(model, vocab, train_dataloader, val_dataloader, args, device, logger=logger)
     elif args.mode == 'test':
         print("Starting testing...")
-        test(args.checkpoint, model, vocab, test_dataloader, args, device, plot=False)
+        test(args.checkpoint, model, vocab, test_dataloader, args, device)
     elif args.mode == 'generate':
         print("Starting text generation...")
         generate_texts(args.checkpoint, model, vocab, args, device)
