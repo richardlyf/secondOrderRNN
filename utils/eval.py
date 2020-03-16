@@ -20,6 +20,7 @@ def validate(model, criterion, val_dataset, is_stream, device, \
     # syntax stats
     if stats_output_file is not None:
         f = open(stats_output_file, "w")
+        f.write("\n")
 
     # initialize hidden state
     init_state = model.init_lstm_state(device=device)
