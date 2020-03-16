@@ -3,7 +3,7 @@ from tqdm import tqdm
 import numpy as np
 
 
-def generate_sentences(model, vocab, batch_size, max_sentence_length=10, is_penn=False, \
+def generate_sentences(model, vocab, batch_size, max_sentence_length=10, is_stream=False, \
         generation_method="greedy", device=None):
     """
     Returns a single generated sentence using the language model.
@@ -11,7 +11,7 @@ def generate_sentences(model, vocab, batch_size, max_sentence_length=10, is_penn
     @param vocab: Vocab object containing mapping from word to indices
     @param batch_size: Number of sentences to generate at a time
     @param max_sentence_length: Max length of a generated sentence if <end> is not generated
-    @param is_penn: Boolean of whether the model is for PTB dataset
+    @param is_stream: Boolean of whether the model is for PTB dataset
     @param generation_method: Should be "greedy", "random", or "beam"
     @param device: gpu or cpu
     @return sents List[string]: A list of sentences
@@ -27,7 +27,7 @@ def generate_sentences(model, vocab, batch_size, max_sentence_length=10, is_penn
     init_state = model.generate_context_state(device)
     for seq_idx in tqdm(range(max_sentence_length)):
         y_pred, ret_state = model(sents, init_state)
-        init_state = ret_state if is_penn else init_state
+        init_state = ret_state if is_stream else init_state
         next_words = select_word(y_pred, batch_size)
         sents = torch.cat((sents, next_words), dim=1).to(device)
     sents = tensor_to_sentences(sents, vocab)

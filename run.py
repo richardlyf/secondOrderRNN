@@ -49,8 +49,7 @@ def argParser():
     parser.add_argument("--test-path", dest="test_path", help="Testing data file")
     parser.add_argument("--checkpoint", dest="checkpoint", type=str, default="", help="Path to the .pth checkpoint file. Used to continue training from checkpoint")
     # Arguments for PTB dataset
-    parser.add_argument("--is-penn", dest="is_penn", type=int, default=1, help="1: Train on PennTreebank 0: Train on parens data. \
-        This argument is also passed to models to treat batches as streams.")
+    parser.add_argument("--is-stream", dest="is_stream", type=int, default=1, help="1: Treats data as a stream 0: Treats each line as a separate sentence")
     parser.add_argument("--bptt", dest="bptt", type=int, default=70, help="Length of backpropogation through time")
     # Arguments for attention model
     parser.add_argument("--second-order-size", dest="second_order_size", type=int, default=2, help="Number of cells for the attention model.")
@@ -73,7 +72,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
     lr = args.lr
     lr_factor = args.lr_decay
     patience = args.patience
-    is_penn = args.is_penn
+    is_stream = args.is_stream
     num_epochs = args.epochs
     save_to_log = logger is not None
     logdir = logger.get_logdir() if logger is not None else None
@@ -109,7 +108,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             # When training on PTB, we want to preserve internal states between
             # batches in the epoch
             y_pred, ret_state = model(x, init_state)
-            init_state = ret_state if is_penn else init_state
+            init_state = ret_state if is_stream else init_state
             # Criterion takes in y: (batch_size*seq_len) correct labels and 
             # y_pred: (batch_size*seq_len, vocab_size) softmax prob of vocabs
             loss = criterion(y_pred, y)
@@ -125,7 +124,7 @@ def train(model, vocab, train_dataset, val_dataset, args, device, logger=None):
             epoch_average_loss = np.mean(epoch_loss)
             epoch_train_ppl = np.exp(epoch_average_loss)
             epoch_val_ppl, epoch_val_loss, epoch_val_wcpa, _ = \
-                validate(model, criterion, val_dataset, is_penn, device)
+                validate(model, criterion, val_dataset, is_stream, device)
             scheduler.step(epoch_val_loss)
 
             # Check for early stopping
@@ -170,7 +169,7 @@ def test(checkpoint, model, vocab, test_dataset, args, device, plot=False):
     criterion = nn.NLLLoss(ignore_index=vocab.pad_id)
     with torch.no_grad():
         test_ppl, test_loss, test_wcpa, graph_data = validate(
-            model, criterion, test_dataset, args.is_penn, device)
+            model, criterion, test_dataset, args.is_stream, device)
 
     # plot ldpa by distance
     if plot:
@@ -190,7 +189,7 @@ def generate_texts(checkpoint, model, vocab, args, device):
     model.eval()
     with torch.no_grad():
         sents = generate_sentences(model, vocab, args.batch_size, args.max_sentence_length, \
-            args.is_penn, args.generation_method, device)
+            args.is_stream, args.generation_method, device)
     print("Saving generated text to file...")
     with open(save_file, "w") as f:
         for line in sents:
@@ -202,7 +201,7 @@ def main():
     # setup
     print("Setting up...")
     args = argParser()
-    args.is_penn = True if args.is_penn == 1 else False
+    args.is_stream = True if args.is_stream == 1 else False
     device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else "cpu")
     unique_logdir = create_unique_logdir(args.log, args.lr)
     logger = Logger(unique_logdir) if args.log != '' else None
@@ -212,9 +211,9 @@ def main():
 
     # build dataset object
     print("Creating Dataset...")
-    train_dataset = CustomDataset(args.train_path, args.batch_size, args.bptt, is_penn=args.is_penn)
+    train_dataset = CustomDataset(args.train_path, args.batch_size, args.bptt, is_stream=args.is_stream)
     train_json_path = train_dataset.get_json_path()
-    val_dataset = CustomDataset(args.valid_path, args.batch_size, args.bptt, is_penn=args.is_penn, json_path_override=train_json_path)
+    val_dataset = CustomDataset(args.valid_path, args.batch_size, args.bptt, is_stream=args.is_stream, json_path_override=train_json_path)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
@@ -225,7 +224,7 @@ def main():
     kwargs["temp_decay_interval"] = len(train_dataloader)
 
     if args.mode == 'test':
-        test_dataset = CustomDataset(args.test_path, args.batch_size, args.bptt, is_penn=args.is_penn, json_path_override=train_json_path)
+        test_dataset = CustomDataset(args.test_path, args.batch_size, args.bptt, is_stream=args.is_stream, json_path_override=train_json_path)
         test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     print("Done!")
 

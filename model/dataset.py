@@ -6,15 +6,21 @@ from collections import Counter
 from itertools import chain
 import math
 
-def get_processed_dataset_path(dataset_path):
+def get_processed_dataset_path(dataset_path, is_stream=True):
     """
     Return two dataset paths
     The first is .npy and the second is .json
     npy file stores all the preprocessed data
     json file stores all the vocab and its indices
     """
-    npy_path = dataset_path[:-4] + ".npy"
-    json_path = dataset_path[:-4] + ".json"
+    npy_path = dataset_path[:-4]
+    json_path = dataset_path[:-4]
+    if is_stream:
+        npy_path += "_stream"
+        json_path += "_stream"
+    npy_path += ".npy"
+    json_path += ".json"
+
     return npy_path, json_path
 
 
@@ -95,8 +101,10 @@ def get_glove(embed_path, vocab):
     np.save(processed_dataset_path, embedding_matrix, allow_pickle=True)
     return embedding_matrix
 
-def preprocess_parens_dataset(dataset_path, json_path_override=None):
+def preprocess_sentence_dataset(dataset_path, json_path_override=None):
     """
+    Treats each line of the data file as a separate sentence. 
+    Start and end tokens are added.
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs.
     This will be called to generate dataset for train, val, and test.
@@ -104,7 +112,7 @@ def preprocess_parens_dataset(dataset_path, json_path_override=None):
     @json_path_override: When creating the validation set, the json file of the train dataset should 
     be passed in so all words share the same indicies.
     """
-    npy_path, json_path = get_processed_dataset_path(dataset_path)
+    npy_path, json_path = get_processed_dataset_path(dataset_path, is_stream=False)
 
     # Create the corpus by splitting the file by word
     corpus = []
@@ -139,8 +147,9 @@ def preprocess_parens_dataset(dataset_path, json_path_override=None):
     np.save(npy_path, dataset, allow_pickle=True)
 
 
-def preprocess_penn_dataset(dataset_path, batch_size, bptt, json_path_override=None):
+def preprocess_stream_dataset(dataset_path, batch_size, bptt, json_path_override=None):
     """
+    Treats the entire data file as a stream. 
     Preprocesses a data file to generate a vocab list and a npy file that stores 
     (input, target) pairs. Note that the dataset created is specific to 
     batch_size and bptt, so needs to be re-run every time batch_size is changed.
@@ -196,11 +205,11 @@ def preprocess_penn_dataset(dataset_path, batch_size, bptt, json_path_override=N
 
 
 class CustomDataset(Dataset):
-    def __init__(self, dataset_path, batch_size=0, bptt=0, is_penn=False, json_path_override=None):
+    def __init__(self, dataset_path, batch_size=0, bptt=0, is_stream=False, json_path_override=None):
         self.batch_size = batch_size
         self.bptt = bptt
         # Create preprocessed data file names
-        if is_penn:
+        if is_stream:
             processed_dataset_path, json_path = get_stream_batched_dataset_path(
                 dataset_path, batch_size, bptt)
         else:
@@ -208,10 +217,10 @@ class CustomDataset(Dataset):
         
         # Create the preprocessed dataset if it doesn't already exist
         if not os.path.exists(processed_dataset_path):
-            if is_penn:
-                preprocess_penn_dataset(dataset_path, self.batch_size, self.bptt, json_path_override)
+            if is_stream:
+                preprocess_stream_dataset(dataset_path, self.batch_size, self.bptt, json_path_override)
             else:
-                preprocess_parens_dataset(dataset_path, json_path_override)
+                preprocess_sentence_dataset(dataset_path, json_path_override)
 
         # Load the dataset from npy file
         self.dataset = np.load(processed_dataset_path, allow_pickle=True)

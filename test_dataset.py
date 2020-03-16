@@ -18,9 +18,9 @@ def test_penntreebank():
         for line in f:
             words += line.split()
 
-    treebank = CustomDataset(path, batch_size=batch_size, bptt=bptt, is_penn=True)
+    treebank = CustomDataset(path, batch_size=batch_size, bptt=bptt, is_stream=True)
     dataloader = DataLoader(treebank, batch_size=batch_size, shuffle=False, num_workers=4)
-    vocab = Vocab(file_path="data/penn/train.json")
+    vocab = Vocab(file_path="data/penn/train_stream.json")
     
     total_num_lines = math.ceil(len(words) / bptt)
     num_batches = math.ceil(total_num_lines / batch_size)
