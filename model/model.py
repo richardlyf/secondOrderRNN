@@ -46,22 +46,26 @@ class LanguageModelBase(nn.Module):
         Initialize hidden state and cell state to zeros
         """
         zero_hidden = torch.zeros(self.hidden_shape, device=device) 
-        zero_cell = torch.zeros(self.hidden_shape, device=device) 
-        return (zero_hidden, zero_cell)
+        # zero_cell = torch.zeros(self.hidden_shape, device=device) 
+        # return (zero_hidden, zero_cell)
+        return zero_hidden 
 
     def generate_context_state(self, device):
         """
         Initialize hidden state and cell state to random
         """
         context_hidden = torch.randn(self.hidden_shape, device=device) 
-        context_cell = torch.randn(self.hidden_shape, device=device) 
-        return (context_hidden, context_cell)
+        # context_cell = torch.randn(self.hidden_shape, device=device) 
+        return context_hidden #(context_hidden, context_cell)
 
     def detach_hidden(self, hidden):
         """
         Detaches the lstm states before returning them in forward()
         """
-        return tuple([h.detach() for h in hidden])
+        if isinstance(hidden, torch.Tensor):
+            return hidden.detach()
+        else:
+            return tuple([h.detach() for h in hidden])
 
 
 class LSTMLanguageModel(LanguageModelBase):
@@ -79,7 +83,7 @@ class LSTMLanguageModel(LanguageModelBase):
             self.embeddings.weight = nn.Parameter(glove_tensor)
             self.embeddings.weight.requires_grad = False
 
-        self.lstm = nn.LSTM(
+        self.lstm = nn.RNN(
             input_size=embed_size, 
             hidden_size=hidden_size, 
             num_layers=num_layers, 

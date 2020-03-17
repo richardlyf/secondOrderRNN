@@ -21,7 +21,7 @@ class customCellBase(nn.Module):
                 "input has inconsistent input_size: got {}, expected {}".format(
                     input.size(1), self.input_size))
 
-    def check_forward_hidden(self, input, hx, hidden_label=''):
+    def check_forward_hidden(self, input, hx, hidden_label=''): 
         # type: (Tensor, Tensor, str) -> None
         if input.size(0) != hx.size(0):
             raise RuntimeError(
@@ -46,7 +46,7 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         self.hidden_size = hidden_size
         self.second_order_size = second_order_size
 
-        self.secondOrderLSTMCells = nn.ModuleList([nn.LSTMCell(input_size, hidden_size, bias)\
+        self.secondOrderLSTMCells = nn.ModuleList([nn.RNNCell(input_size, hidden_size, bias)\
             for i in range(second_order_size)])
         # Each cell has an attention vector V_i of size input_size(embed_size) so together they're a matrix 
         # of size (input_size, second_order_size) which is essentially a linear layer with no bias
@@ -92,11 +92,11 @@ class AttentionSecondOrderLSTMCell(customCellBase):
 
         if lstm_states is None:
             hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
-            cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
-            lstm_states = (hidden, cell)
+            # cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
+            lstm_states = hidden #(hidden, cell)
 
-        self.check_forward_hidden(input, lstm_states[0], '_state')
-        self.check_forward_hidden(input, lstm_states[1], '_cell')
+        # self.check_forward_hidden(input, lstm_states[0], '_state')
+        # self.check_forward_hidden(input, lstm_states[1], '_cell')
 
         # Compute attention score of cells
         # (batch_size, second_order_size)
@@ -106,13 +106,13 @@ class AttentionSecondOrderLSTMCell(customCellBase):
 
         # Compute updated hidden and cell state using each LSTMCell
         updated_hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
-        updated_cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
+        # updated_cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
         for cell_idx in range(self.second_order_size):
-            updated_hidden_component, updated_cell_component = self.secondOrderLSTMCells[cell_idx](input, lstm_states)
+            updated_hidden_component = self.secondOrderLSTMCells[cell_idx](input, lstm_states)
             # Add None in index to broadcast to shape (batch_size, 1)
             updated_hidden += alpha[:, cell_idx, None] * updated_hidden_component
-            updated_cell += alpha[:, cell_idx, None] * updated_cell_component
-        return (updated_hidden, updated_cell)
+            # updated_cell += alpha[:, cell_idx, None] * updated_cell_component
+        return updated_hidden #(updated_hidden, updated_cell)
 
 
 class AttentionSecondOrderLSTM(nn.Module):
@@ -136,16 +136,16 @@ class AttentionSecondOrderLSTM(nn.Module):
 
         if lstm_states is None:
             hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
-            cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
-            lstm_states = (hidden, cell)
+            # cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
+            lstm_states = hidden #(hidden, cell)
 
         combined_outputs = torch.empty((batch_size, seq_len, self.hidden_size), device=input.device)
 
         for seq_idx in range(seq_len):
             # (batch_size, embed_size)
             input_embed_t = input[:, seq_idx]
-            hidden, cell = self.lstm_cell(input_embed_t, temperature, lstm_states)
-            lstm_states = (hidden, cell)
+            hidden  = self.lstm_cell(input_embed_t, temperature, lstm_states)
+            lstm_states = hidden # (hidden, cell)
             combined_outputs[:, seq_idx] = hidden
 
-        return combined_outputs, (hidden, cell)
+        return combined_outputs, hidden #(hidden, cell)
