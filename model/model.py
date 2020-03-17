@@ -23,7 +23,7 @@ def ModelChooser(model_name, **kwargs):
         return AssignmentLanguageModel(**kwargs)
     if model_name == "attention":
         return AttentionLanguageModel(**kwargs)
-    if model_name == "ptb_lstm":
+    if model_name == "stream_lstm":
         # fill in path to pretrained vector embeddings here
         # if embed_path is left empty, model will train without embeddings
         # kwargs["embed_path"] = "data/vectors/glove.840B.300d.txt"

@@ -40,9 +40,9 @@ elif [ "$1" = "test_m8_attention" ]; then
 ##########################
 
 elif [ "$1" = "train_penn_baseline" ]; then
-    CUDA_VISIBLE_DEVICES=0 python3 run.py --model ptb_lstm --train-path=./data/penn/train.txt --valid-path=./data/penn/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1  --log-every 10 --log baseline_penn_batch64_bptt70 --epochs 1000
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model stream_lstm --train-path=./data/penn/train.txt --valid-path=./data/penn/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1  --log-every 10 --log baseline_penn_batch64_bptt70 --epochs 1000
 elif [ "$1" = "test_penn_baseline" ]; then
-    CUDA_VISIBLE_DEVICES=0 python3 run.py --model ptb_lstm --train-path=./data/penn/train.txt --valid-path=./data/penn/valid.txt --test-path=./data/penn/test.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --mode test --checkpoint ./log/final/baseline_penn_batch64_bptt70_Y2020_M3_D13_h15_m31_lr0.0001/checkpoints/best_val_ppl.pth
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model stream_lstm --train-path=./data/penn/train.txt --valid-path=./data/penn/valid.txt --test-path=./data/penn/test.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --mode test --checkpoint ./log/final/baseline_penn_batch64_bptt70_Y2020_M3_D13_h15_m31_lr0.0001/checkpoints/best_val_ppl.pth
 elif [ "$1" = "train_penn_2cell" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/penn/train.txt --valid-path=./data/penn/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --log-every 10 --log attention_penn_batch64_bptt70_2cell --epochs 1000 --second-order-size 2
 elif [ "$1" = "test_penn_2cell" ]; then
@@ -57,9 +57,9 @@ elif [ "$1" = "test_penn_5cell" ]; then
 ##########################
 
 elif [ "$1" = "train_wiki_baseline" ]; then
-    CUDA_VISIBLE_DEVICES=0 python3 run.py --model ptb_lstm --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1  --log-every 10 --log baseline_wiki_batch64_bptt70 --epochs 1000
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model stream_lstm --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1  --log-every 10 --log baseline_wiki_batch64_bptt70 --epochs 1000
 elif [ "$1" = "test_wiki_baseline" ]; then
-    CUDA_VISIBLE_DEVICES=0 python3 run.py --model ptb_lstm --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --test-path=./data/wikitext-2/test.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --mode test --checkpoint ./log/final//checkpoints/best_val_ppl.pth
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model stream_lstm --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --test-path=./data/wikitext-2/test.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --mode test --checkpoint ./log/final//checkpoints/best_val_ppl.pth
 elif [ "$1" = "train_wiki_2cell" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --log-every 10 --log attention_wiki_batch64_bptt70_2cell --epochs 1000 --second-order-size 2
 elif [ "$1" = "test_wiki_2cell" ]; then
