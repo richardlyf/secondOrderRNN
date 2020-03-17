@@ -15,7 +15,7 @@ class TestWriter():
         with open(self.out_file, 'w') as f:
             name_length = 0
             key_length = 0
-            for name in all_sents.keys():
+            for name in sorted(all_sents.keys()):
                 if "npi" in name:
                     multiplier=3
                 else: multiplier=2
