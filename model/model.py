@@ -11,27 +11,33 @@ from model.dataset import get_glove
 def ModelChooser(model_name, **kwargs):
     """
     This function takes in a model name and returns its corresponding model
+
+    Note: currently pre-trained embeddings are not supported for attention
+    or assignment models; to use pre-trained embeddings for a baseline model,
+    fill in the embed_path parameter in kwargs
     """
     if model_name == "baseline_lstm":
+        # fill in path to pretrained vector embeddings here
+        # if embed_path is left empty, model will train without embeddings
+        # kwargs["embed_path"] = "data/vectors/glove.840B.300d.txt"
         return LSTMLanguageModel(**kwargs)
     if model_name == "baseline_rnn":
+        # fill in path to pretrained vector embeddings here
+        # if embed_path is left empty, model will train without embeddings
+        # kwargs["embed_path"] = "data/vectors/glove.840B.300d.txt"
         return RNNLanguageModel(**kwargs)
-    if model_name == "mLSTM":
+    if model_name == "attention_lstm":
+        return AttentionLSTMLanguageModel(**kwargs)
+    if model_name == "attention_rnn":
+        return AttentionRNNLanguageModel(**kwargs)
+    if model_name == "assignent_lstm":
         # Group by a paren and b paren
         assignments = {
             0: [2, 3, 4, 6],
             1: [0, 1, 5, 7]
         }
         kwargs["assignments"] = assignments
-        return AssignmentLanguageModel(**kwargs)
-    if model_name == "attention":
-        return AttentionLanguageModel(**kwargs)
-    if model_name == "stream_lstm":
-        # fill in path to pretrained vector embeddings here
-        # if embed_path is left empty, model will train without embeddings
-        # kwargs["embed_path"] = "data/vectors/glove.840B.300d.txt"
-        return LSTMLanguageModel(**kwargs)
-
+        return AssignmentLSTMLanguageModel(**kwargs)
 
 class LanguageModelBase(nn.Module):
     """
@@ -188,7 +194,7 @@ class RNNLanguageModel(RNNLanguageModelBase):
         return logits, self.detach_hidden(ret_state)
 
 
-class AssignmentLanguageModel(LSTMLanguageModelBase):
+class AssignmentLSTMLanguageModel(LSTMLanguageModelBase):
     """ second order LSTM language model with explicit assignment """     
     def __init__(self, vocab, batch_size=10, hidden_size=100, embed_size=12, dropout_rate=0.5, \
             device=None, assignments=None, num_cells=2, **kwargs):
