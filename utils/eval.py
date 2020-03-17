@@ -2,6 +2,7 @@ import itertools
 import numpy as np
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 def validate(model, criterion, val_dataset, is_stream, device, \
         vocab=None, stats_output_file=None):
@@ -24,7 +25,7 @@ def validate(model, criterion, val_dataset, is_stream, device, \
 
     # initialize hidden state
     init_state = model.init_lstm_state(device=device)
-    for sentence_id, batch in enumerate(val_dataset):
+    for sentence_id, batch in enumerate(tqdm(val_dataset)):
         x, y = batch
         x = x.to(device)
         y = y.view(-1).to(device)
