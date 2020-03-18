@@ -82,11 +82,10 @@ def sentence_to_list(line):
     Clean one sentence from the batch
     """
     clean = line[1:].strip() \
-                    .replace("'", "") \
                     .replace("]", "") \
                     .replace("[", "") \
-                    .replace(",", "")
-    return clean.split()
+                    .split("', '")
+    return clean
 
 
 def attention_to_numpy(att):
@@ -114,6 +113,7 @@ def get_sentences(file):
             line = f.readline()
         # read in num_words number of attention arrays
         num_words = len(sentences[0])    
+        print(num_words)
         for i in range(num_words):
             attention.append(attention_to_numpy(line))
             line = f.readline()
@@ -125,7 +125,7 @@ def preprocess(sentences, attention, idx):
     """
     Generate text_list, attention_list, and color_list for generate_latex
     """
-    colors = ['red', 'blue', 'green', 'purple']
+    colors = ['red', 'blue', 'green', 'purple', 'orange']
     text_list = sentences[idx]
     seq_len = len(text_list)
     att = attention[:, idx, :]
@@ -144,7 +144,10 @@ def main():
         text_list, attention_list, color_list = preprocess(sentences, attention, idx)
         path = os.path.join(args.outpath, "{}_sent{}.tex".format(args.prefix, idx))
         generate_latex(text_list, attention_list, color_list, latex_file=path)
+    # convert latex to PDF
     os.system('cd {}; for i in *.tex; do pdflatex $i;done'.format(args.outpath))
+    # remove unneeded files
+    os.system('cd {}; rm *.tex; rm *.aux; rm *.log'.format(args.outpath))
 
 if __name__ == '__main__':
     main()
