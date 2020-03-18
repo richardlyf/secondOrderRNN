@@ -65,9 +65,15 @@ elif [ "$1" = "train_wiki_2cell" ]; then
 elif [ "$1" = "test_wiki_2cell" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --test-path=./data/wikitext-2/test.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1  --second-order-size 2 --mode test --checkpoint ./log/final/attention_wiki_batch64_70bptt_2cell_Y2020_M3_D15_h23_m45_lr0.0001/checkpoints/best_val_ppl.pth
 elif [ "$1" = "train_wiki_5cell" ]; then
-    CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --log-every 10 --log attention_penn_batch64_bptt70_5cell --epochs 1000 --second-order-size 5
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --log-every 10 --log attention_wiki_batch64_bptt70_5cell --epochs 1000 --second-order-size 5
 elif [ "$1" = "test_wiki_5cell" ]; then
-    CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --second-order-size 5 --mode test --checkpoint ./log/final/attention_wiki_batch64_70bptt_5cell_Y2020_M3_D15_h22_m12_lr0.0001/checkpoints/best_val_ppl.pth
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --hidden-size 600 --embedding-size 300 --batch-size 64 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 1 --epochs 1000 --second-order-size 5 --mode test --checkpoint ./log/final/attention_wiki_batch64_70bptt_5cell_Y2020_M3_D15_h22_m12_lr0.0001/checkpoints/best_val_ppl.pth
+
+##########################
+### WikiText2 Syneval
+##########################
+elif [ "$1" = "syneval_wiki_baseline" ]; then
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model stream_lstm --train-path=./data/wikitext-2/train.txt --valid-path=./data/wikitext-2/valid.txt --test-path=./LM_syneval/EMNLP2018/templates/all_test_sents.txt --hidden-size 600 --embedding-size 300 --batch-size 16 --bptt 70 --dropout 0.5 --lr 1e-4 --is-stream 0 --mode test --checkpoint ./log/final//checkpoints/best_val_ppl.pth
 else
 	echo "Invalid Option Selected"
 fi
