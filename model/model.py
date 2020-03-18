@@ -172,6 +172,8 @@ class AttentionLanguageModel(LanguageModelBase):
         self.test_temperature = 1e-5
         self.temp_decay = temp_decay
         self.temp_decay_interval = temp_decay_interval
+
+        self.vocab = vocab
         
     def forward(self, x, init_state):
         """
@@ -190,6 +192,10 @@ class AttentionLanguageModel(LanguageModelBase):
         # For eval temperature should be set to default low
         else:
             temperature = self.test_temperature
+
+        # Print x for heat mapping
+        for s in range(x.shape[0]):
+            print('{} {}'.format(s, [self.vocab.id2word[i.item()] for i in x[s,:]]))
 
         embedded = self.embeddings(x)
         embedded = self.drop(embedded)

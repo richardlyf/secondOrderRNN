@@ -104,6 +104,9 @@ class AttentionSecondOrderLSTMCell(customCellBase):
         # Compute attention distribution
         alpha = self.temperature_softmax(attscore, temperature)
 
+        # Print alpha for heat mapping
+        print(alpha.numpy().tolist())
+
         # Compute updated hidden and cell state using each LSTMCell
         updated_hidden = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
         updated_cell = torch.zeros(batch_size, self.hidden_size, dtype=input.dtype, device=input.device)
