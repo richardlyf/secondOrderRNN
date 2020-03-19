@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from attentionSecondOrderLSTM import customCellBase
+from model.attentionSecondOrderLSTM import customCellBase
 
 
 class AttentionSecondOrderRNNCell(customCellBase):
@@ -10,7 +10,7 @@ class AttentionSecondOrderRNNCell(customCellBase):
     For second order RNN, we apply different weight matrix W to different inputs
     Each weight matrix W is repesented by an individual RNNCell.
     Each RNNCell has a corresponding attention vector V_i that is multiplied with
-    the input embedding to compute the attention score.    
+    the input embedding to compute the attention score.
     """
     def __init__(self, second_order_size, input_size, hidden_size, bias=True, **kwargs):
         super(AttentionSecondOrderRNNCell, self).__init__(input_size, hidden_size)
@@ -19,11 +19,11 @@ class AttentionSecondOrderRNNCell(customCellBase):
 
         self.secondOrderRNNCells = nn.ModuleList([nn.RNNCell(input_size, hidden_size, bias)\
             for i in range(second_order_size)])
-        # Each cell has an attention vector V_i of size input_size(embed_size) so together they're a matrix 
+        # Each cell has an attention vector V_i of size input_size(embed_size) so together they're a matrix
         # of size (input_size, second_order_size) which is essentially a linear layer with no bias
         self.attentionScores = torch.nn.Linear(input_size, second_order_size, bias=False)
         self.softmax = nn.Softmax(dim=1)
-            
+
     def temperature_softmax(self, x, temperature):
         """
         When the temperature is 1 (hot), this function behaves like a normal softmax
@@ -41,12 +41,12 @@ class AttentionSecondOrderRNNCell(customCellBase):
         """
         We compute attention using the input embedding e_t. Initially the temperature should be high, so that the attention
         score is widely distributed. The input embedding is passed through each RNNCell to obtain second_order_size amount
-        of updated hidden states h_{t+1}. The updated hidden states are then weighted by the attention distribution and 
+        of updated hidden states h_{t+1}. The updated hidden states are then weighted by the attention distribution and
         summed to form a single next hidden state. As training goes on, the temperature should decrease, so the attention
         distribution would only favor one of the RNNCell's output and the updated hidden state would effectively be the output
         hidden state of that RNNCell.
 
-        At time sequence t, given input embedding e_t, we first compute the attention score 
+        At time sequence t, given input embedding e_t, we first compute the attention score
         attscore_t,i = e_t,i * V_i so that attscore_t has shape (second_order_size, ); i = {1, ... , second_order_size}
         We then compute the attention distribution alpha_t = temperature_softmax(attscore_t)
         The attention distribution is used to weight the output hidden states of RNNCells. We get a single updated hidden state
@@ -87,7 +87,7 @@ class AttentionSecondOrderRNN(nn.Module):
     Second order rnn that uses SecondOrderRNNCell
     """
     def __init__(self, second_order_size, input_size, hidden_size, bias=True, **kwargs):
-        super(AttentionSecondOrderrnn, self).__init__()
+        super(AttentionSecondOrderRNN, self).__init__()
         self.rnn_cell = AttentionSecondOrderRNNCell(second_order_size, input_size, hidden_size, bias=bias)
         self.hidden_size = hidden_size
 
