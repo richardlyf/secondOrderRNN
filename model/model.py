@@ -65,7 +65,7 @@ class LSTMLanguageModelBase(LanguageModelBase):
     Contains functions needed by all models for the penn tree bank dataset
     """
     def __init__(self, batch_size, hidden_size, num_layers=None):
-        super(LSTMLanguageModelBase, self).__init__()
+        super(LSTMLanguageModelBase, self).__init__(batch_size, hidden_size, num_layers)
 
     def init_lstm_state(self, device):
         """
@@ -89,7 +89,7 @@ class RNNLanguageModelBase(LanguageModelBase):
     Contains functions needed by all models for the penn tree bank dataset
     """
     def __init__(self, batch_size, hidden_size, num_layers=None):
-        super(RNNLanguageModelBase, self).__init__(batch_size, hidden_size)
+        super(RNNLanguageModelBase, self).__init__(batch_size, hidden_size, num_layers)
 
     def init_lstm_state(self, device):
         """
@@ -185,7 +185,7 @@ class RNNLanguageModel(RNNLanguageModelBase):
         # (batch_size, sequence_length, embed_size)
         rnn_output, ret_state = self.rnn(embedded, init_state)
         # (batch_size * sequence_length, hidden_size)
-        reshaped = rnn_output.reshape(-1, lstm_output.size(2))
+        reshaped = rnn_output.reshape(-1, rnn_output.size(2))
         reshaped = self.drop(reshaped)
         decoded = self.linear(reshaped)
         # (batch_size * sequence_length, vocab_size)
