@@ -84,8 +84,8 @@ def sentence_to_list(line):
     clean = line[1:].strip() \
                     .replace("]", "") \
                     .replace("[", "") \
-                    .split("', '")
-    return clean
+                    .split(", ")
+    return [c[1:-1] for c in clean]
 
 
 def attention_to_numpy(att):
