@@ -1,6 +1,8 @@
 # Modeling Long-Distance Dependencies with Second-Order LSTMs
 Stanford CS224N Natural Language Processing with Deep Learning
 
+We present our results in this [paper](Paper.pdf).
+
 ---
 
 ## Datasets
