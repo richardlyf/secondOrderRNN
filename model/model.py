@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from model.paren_mLSTM import paren_mLSTM
+from model.assignmentLSTM import AssignmentLSTM
 from model.attentionSecondOrderLSTM import AttentionSecondOrderLSTM
 from model.dataset import get_glove
 
@@ -119,7 +119,7 @@ class AssignmentLanguageModel(LanguageModelBase):
         self.embeddings = nn.Embedding(vocab_size, embed_size)
 
         # Here we introduce the assignmentLSTM
-        self.lstm = paren_mLSTM(
+        self.lstm = AssignmentLSTM(
             embed_size=embed_size, 
             hidden_size=hidden_size, 
             assignments=assignments, 
