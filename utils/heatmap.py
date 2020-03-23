@@ -63,9 +63,14 @@ def generate_latex(text_list, attention_list, color_list, latex_file, rescale_va
         f.write(r'''\documentclass[varwidth]{standalone}
 \special{papersize=210mm,297mm}
 \usepackage[T1]{fontenc}
-\usepackage{color}
+\usepackage{xcolor}
 \usepackage{tcolorbox}
 \usepackage{adjustbox}
+\definecolor{color1}{RGB}{77,175,74} % green
+\definecolor{color2}{RGB}{255,255,179} % yellow
+\definecolor{color3}{RGB}{152,78,163} % purple
+\definecolor{color4}{RGB}{251,128,114} % red
+\definecolor{color5}{RGB}{128,177,211} % blue
 \tcbset{width=0.9\textwidth,boxrule=0pt,colback=red,arc=0pt,auto outer arc,left=0pt,right=0pt,boxsep=5pt}
 \begin{document}'''+'\n')
         string = r'''{\setlength{\fboxsep}{0pt}\colorbox{white!0}{\parbox{0.9\textwidth}{'''+"\n"
@@ -125,7 +130,7 @@ def preprocess(sentences, attention, idx):
     """
     Generate text_list, attention_list, and color_list for generate_latex
     """
-    colors = ['red', 'blue', 'green', 'purple', 'orange']
+    colors = ['color1', 'color2', 'color3', 'color4', 'color5']
     text_list = sentences[idx]
     seq_len = len(text_list)
     att = attention[:, idx, :]
