@@ -32,7 +32,7 @@ elif [ "$1" = "train_m8_baseline" ]; then
 elif [ "$1" = "test_m8_baseline" ]; then
     CUDA_VISIBLE_DEVICES=0 python3 run.py --model baseline_lstm --train-path=./data/mbounded-dyck-k/m8/train.formal.txt --valid-path=./data/mbounded-dyck-k/m8/dev.formal.txt --test-path ./data/mbounded-dyck-k/m8/test.formal.txt  --hidden-size 24 --embedding-size 30 --batch-size 10 --dropout 0 --num-layers 1 --is-stream 0 --mode test --checkpoint ./log/final/baseline_m8_batch10_Y2020_M3_D13_h15_m4_lr0.0001/checkpoints/best_val_ppl.pth
 elif [ "$1" = "train_m8_attention" ]; then
-    CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/mbounded-dyck-k/m8/train.formal.txt --valid-path=./data/mbounded-dyck-k/m8/dev.formal.txt --hidden-size 24 --embedding-size 30 --batch-size 10 --dropout 0 --lr 1e-4 --log attention_m4_batch10 --log-every 10 --is-stream 0 --epochs 1000
+    CUDA_VISIBLE_DEVICES=0 python3 run.py --model attention --train-path=./data/mbounded-dyck-k/m8/train.formal.txt --valid-path=./data/mbounded-dyck-k/m8/dev.formal.txt --hidden-size 24 --embedding-size 30 --batch-size 10 --dropout 0 --lr 1e-4 --log attention_m8_batch10 --log-every 10 --is-stream 0 --epochs 1000
 elif [ "$1" = "test_m8_attention" ]; then
     CUDA_VISIBLE_DEVICES=0 python3  --model attention --train-path=./data/mbounded-dyck-k/m8/train.formal.txt --valid-path=./data/mbounded-dyck-k/m8/dev.formal.txt --test-path ./data/mbounded-dyck-k/m8/test.formal.txt --hidden-size 24 --embedding-size 30 --batch-size 10 --dropout 0 --is-stream 0 --lr 1e-4 --mode test -- checkpoint ./log/final/attention_m8_batch10_Y2020_M3_D13_h15_m13_lr0.0001/checkpoints/best_val_ppl.pth --epochs 1000
 ##########################
